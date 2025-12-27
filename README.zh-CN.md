@@ -21,14 +21,27 @@ OCR 与窗口捕获的早期基础框架。
 
 ## 环境要求
 - Windows
-- Python 3.9+（建议）
+- Miniconda/Conda（建议）
+- Python 3.12（开发环境）
 - 依赖：
   - `PySide6`
   - `qt-material`
   - `pywin32`
   - `paddleocr`（可选，仅用于 `test_ocr.py`）
 
+## Python 环境说明
+- 本项目开发时使用 **Miniconda** 创建的 Python 环境。
+- 我会在不同电脑上开发，因此每台电脑的 conda env 目录/路径都可能不同。
+- Python 可执行文件 **不在 PATH** 中，请在激活 conda 环境后运行命令，或使用 `conda run -n <env> ...`。
+
 ## 安装
+```bash
+conda create -n diablohelper python=3.12
+conda activate diablohelper
+pip install PySide6 qt-material pywin32
+```
+
+可选方案（venv）：
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
@@ -43,6 +56,11 @@ pip install paddleocr
 ## 运行
 ```bash
 python launch.py
+```
+
+如果不想激活环境，也可以：
+```bash
+conda run -n diablohelper python launch.py
 ```
 
 ## 说明

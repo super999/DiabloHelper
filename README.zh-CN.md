@@ -3,6 +3,8 @@
 基于 PySide6 的 Windows 桌面辅助工具。提供简单的 GUI 用于监控与截图，并包含
 OCR 与窗口捕获的早期基础框架。
 
+语言：简体中文 | [English](README.md)
+
 ## 功能
 - PySide6 GUI（Qt Designer UI 文件）
 - 启动/停止监控开关与基础动作

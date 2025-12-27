@@ -4,7 +4,7 @@ Windows desktop helper built with PySide6. It provides a simple GUI for
 monitoring and screenshots, and includes early scaffolding for OCR and
 window capture.
 
-中文版请看 `README.zh-CN.md`.
+Language: English | [简体中文](README.zh-CN.md)
 
 ## Features
 - PySide6 GUI with Qt Designer UI files

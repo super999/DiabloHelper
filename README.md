@@ -22,14 +22,27 @@ Language: English | [简体中文](README.zh-CN.md)
 
 ## Requirements
 - Windows
-- Python 3.9+ (recommended)
+- Miniconda/Conda (recommended)
+- Python 3.12 (development environment)
 - Dependencies:
   - `PySide6`
   - `qt-material`
   - `pywin32`
   - `paddleocr` (optional, only for `test_ocr.py`)
 
+## Python Environment Notes
+- This project is developed using a Python environment created in **Miniconda**.
+- I develop on multiple computers, so the conda environment directory/path may differ on each machine.
+- The Python executable is **not added to PATH**. Always run commands from an activated conda environment, or use `conda run -n <env> ...`.
+
 ## Setup
+```bash
+conda create -n diablohelper python=3.12
+conda activate diablohelper
+pip install PySide6 qt-material pywin32
+```
+
+Alternative (venv):
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
@@ -44,6 +57,11 @@ pip install paddleocr
 ## Run
 ```bash
 python launch.py
+```
+
+If you do not activate the environment, you can also run:
+```bash
+conda run -n diablohelper python launch.py
 ```
 
 ## Notes

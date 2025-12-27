@@ -36,4 +36,4 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
     
     def on_screenshot_clicked(self):
         logging.info("Screenshot button clicked")
-        CapService().cap_window()
+        CapService().cap_full_screen()

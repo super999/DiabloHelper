@@ -104,3 +104,7 @@ ENV/
 # IDE settings
 .vscode/
 /MuseLog/tests/prompt_params.json
+
+/screen_shoot/
+/screen_shoot/screenshot_tmp.png
+/screen_shoot/screenshot_small.png

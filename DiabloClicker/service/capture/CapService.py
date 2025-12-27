@@ -37,3 +37,12 @@ class CapService(metaclass=Singleton):
         ImageShop().add_img_pot(img)
         ImageShop().save_to_screen_shoot_dir(img=img)
         ImageShop().save_small_pic(img=img, x=527, y=125, w=721, h=451)
+        
+    def cap_full_screen(self):
+        logging.warning('调用全屏截屏')
+        screen = QApplication.primaryScreen()
+        img = screen.grabWindow(0).toImage()
+        if not img:
+            return
+        ImageShop().add_img_pot(img)
+        ImageShop().save_to_screen_shoot_dir(img=img)

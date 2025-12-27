@@ -19,7 +19,7 @@ from DiabloClicker.main_window import DiabloClickerMainWindow
 def main():
     # 初始化日志
     logging_utils.init_logging()
-    logging.info("Meta Story Board started")
+    logging.info("Diablo Clicker started")
     # 初始化全局服务
     # init_services()
     # 启动主窗口

@@ -1,0 +1,24 @@
+{
+    "target_window_title": "MobaXterm Remote Desktop",
+    "screenshot": {
+        "save_to_directory": true,
+        "save_small_pic": true,
+        "small_pic_region": {
+            "x": 527,
+            "y": 125,
+            "width": 721,
+            "height": 451
+        }
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "diablo_helper.log"
+    },
+    "ui": {
+        "theme": "dark_blue",
+        "window_size": {
+            "width": 1083,
+            "height": 692
+        }
+    }
+}

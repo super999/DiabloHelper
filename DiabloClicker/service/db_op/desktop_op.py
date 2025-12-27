@@ -16,4 +16,4 @@ class DesktopService(metaclass=Singleton):
             window_text = win32gui.GetWindowText(hwnd)
             if window_text:
                 cls.hwnd_title.update({hwnd: window_text})
-                logging.info(window_text)
+                logging.info(f'windows title: [{window_text}], hwnd: [{hwnd}]')

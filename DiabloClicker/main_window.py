@@ -4,6 +4,7 @@ from typing import Dict, Optional
 
 from PySide6.QtWidgets import QMainWindow, QApplication, QWidget, QMessageBox
 
+from DiabloClicker.service.capture.CapService import CapService
 from DiabloClicker.ui.ui_main_window import Ui_MainWindow
 
 
@@ -35,4 +36,4 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
     
     def on_screenshot_clicked(self):
         logging.info("Screenshot button clicked")
-        QMessageBox.information(self, "Screenshot", "Screenshot taken!")
+        CapService().cap_window()

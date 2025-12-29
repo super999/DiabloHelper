@@ -79,6 +79,37 @@
           <bool>false</bool>
          </property>
         </widget>
+        <widget class="QToolButton" name="btn_save_config">
+         <property name="geometry">
+          <rect>
+           <x>160</x>
+           <y>5</y>
+           <width>131</width>
+           <height>50</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>保存配置</string>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>55</width>
+           <height>55</height>
+          </size>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonStyle::ToolButtonTextBesideIcon</enum>
+         </property>
+         <property name="autoRaise">
+          <bool>false</bool>
+         </property>
+        </widget>
        </widget>
       </item>
       <item>
@@ -96,6 +127,16 @@
         <column>
          <property name="text">
           <string>时间</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>剩余时间</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string>操作</string>
          </property>
         </column>
         <column>

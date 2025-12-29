@@ -1,5 +1,5 @@
 {
-    "target_window_title": "MobaXterm Remote Desktop",
+    "target_window_title": "暗黑破坏神IV",
     "screenshot": {
         "save_to_directory": true,
         "save_small_pic": true,
@@ -20,5 +20,45 @@
             "width": 1083,
             "height": 692
         }
+    },
+    "timed_key": {
+        "keys": [
+            {
+                "hotkey": "1",
+                "enabled": false,
+                "interval": 6.12,
+                "description": "坠天星落"
+            },
+            {
+                "hotkey": "2",
+                "enabled": true,
+                "interval": 51.0,
+                "description": "正义仲裁官"
+            },
+            {
+                "hotkey": "3",
+                "enabled": true,
+                "interval": 3.0,
+                "description": "奉献"
+            },
+            {
+                "hotkey": "4",
+                "enabled": true,
+                "interval": 4.0,
+                "description": "狂信光环"
+            },
+            {
+                "hotkey": "5",
+                "enabled": true,
+                "interval": 12.0,
+                "description": "抗争光环"
+            },
+            {
+                "hotkey": "6",
+                "enabled": true,
+                "interval": 3.0,
+                "description": "庇护"
+            }
+        ]
     }
 }

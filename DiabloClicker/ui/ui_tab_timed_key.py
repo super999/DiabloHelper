@@ -48,12 +48,20 @@ class Ui_TabTimedKey(object):
         self.btn_start.setChecked(False)
         self.btn_start.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.btn_start.setAutoRaise(False)
+        self.btn_save_config = QToolButton(self.widget_2)
+        self.btn_save_config.setObjectName(u"btn_save_config")
+        self.btn_save_config.setGeometry(QRect(160, 5, 131, 50))
+        self.btn_save_config.setIconSize(QSize(55, 55))
+        self.btn_save_config.setCheckable(True)
+        self.btn_save_config.setChecked(False)
+        self.btn_save_config.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.btn_save_config.setAutoRaise(False)
 
         self.verticalLayout_2.addWidget(self.widget_2)
 
         self.tableWidget = QTableWidget(self.widget)
-        if (self.tableWidget.columnCount() < 4):
-            self.tableWidget.setColumnCount(4)
+        if (self.tableWidget.columnCount() < 6):
+            self.tableWidget.setColumnCount(6)
         __qtablewidgetitem = QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
         __qtablewidgetitem1 = QTableWidgetItem()
@@ -62,6 +70,10 @@ class Ui_TabTimedKey(object):
         self.tableWidget.setHorizontalHeaderItem(2, __qtablewidgetitem2)
         __qtablewidgetitem3 = QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(3, __qtablewidgetitem3)
+        __qtablewidgetitem4 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(4, __qtablewidgetitem4)
+        __qtablewidgetitem5 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(5, __qtablewidgetitem5)
         self.tableWidget.setObjectName(u"tableWidget")
 
         self.verticalLayout_2.addWidget(self.tableWidget)
@@ -78,6 +90,7 @@ class Ui_TabTimedKey(object):
     def retranslateUi(self, TabTimedKey):
         TabTimedKey.setWindowTitle(QCoreApplication.translate("TabTimedKey", u"\u5b9a\u65f6\u6309\u952e", None))
         self.btn_start.setText(QCoreApplication.translate("TabTimedKey", u"\u5df2\u542f\u52a8", None))
+        self.btn_save_config.setText(QCoreApplication.translate("TabTimedKey", u"\u4fdd\u5b58\u914d\u7f6e", None))
         ___qtablewidgetitem = self.tableWidget.horizontalHeaderItem(0)
         ___qtablewidgetitem.setText(QCoreApplication.translate("TabTimedKey", u"\u70ed\u952e", None));
         ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
@@ -85,6 +98,10 @@ class Ui_TabTimedKey(object):
         ___qtablewidgetitem2 = self.tableWidget.horizontalHeaderItem(2)
         ___qtablewidgetitem2.setText(QCoreApplication.translate("TabTimedKey", u"\u65f6\u95f4", None));
         ___qtablewidgetitem3 = self.tableWidget.horizontalHeaderItem(3)
-        ___qtablewidgetitem3.setText(QCoreApplication.translate("TabTimedKey", u"\u8bf4\u660e\uff08\u9009\u9879\uff09", None));
+        ___qtablewidgetitem3.setText(QCoreApplication.translate("TabTimedKey", u"\u5269\u4f59\u65f6\u95f4", None));
+        ___qtablewidgetitem4 = self.tableWidget.horizontalHeaderItem(4)
+        ___qtablewidgetitem4.setText(QCoreApplication.translate("TabTimedKey", u"\u64cd\u4f5c", None));
+        ___qtablewidgetitem5 = self.tableWidget.horizontalHeaderItem(5)
+        ___qtablewidgetitem5.setText(QCoreApplication.translate("TabTimedKey", u"\u8bf4\u660e\uff08\u9009\u9879\uff09", None));
     # retranslateUi
 

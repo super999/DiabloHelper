@@ -4,11 +4,29 @@
         "save_to_directory": true,
         "save_small_pic": true,
         "small_pic_region": {
-            "x": 527,
-            "y": 125,
-            "width": 721,
-            "height": 451
-        }
+            "x": 1535,
+            "y": 1932,
+            "width": 768,
+            "height": 155,
+            "ref_screen_width": 3840,
+            "ref_screen_height": 2160
+        },
+        "digit_area": [
+            {
+                
+            },
+            {
+                "index": 3,
+                "name": "技能3",
+                "x": 1832,
+                "y": 1935,
+                "width": 64,
+                "height": 57
+            },
+            {
+                
+            }
+        ]
     },
     "logging": {
         "level": "INFO",

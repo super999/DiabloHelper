@@ -38,7 +38,10 @@ class Ui_TabAdvanceImage(object):
         self.pushButton_screenshot.setGeometry(QRect(10, 5, 71, 61))
         self.pushButton_test = QPushButton(self.widget_L01)
         self.pushButton_test.setObjectName(u"pushButton_test")
-        self.pushButton_test.setGeometry(QRect(110, 5, 71, 61))
+        self.pushButton_test.setGeometry(QRect(290, 5, 71, 61))
+        self.pushButton_smart_pic_cut = QPushButton(self.widget_L01)
+        self.pushButton_smart_pic_cut.setObjectName(u"pushButton_smart_pic_cut")
+        self.pushButton_smart_pic_cut.setGeometry(QRect(90, 5, 71, 61))
 
         self.verticalLayout.addWidget(self.widget_L01)
 
@@ -93,6 +96,15 @@ class Ui_TabAdvanceImage(object):
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.widget_3 = QWidget(self.widget_2)
         self.widget_3.setObjectName(u"widget_3")
+        self.verticalLayout_3 = QVBoxLayout(self.widget_3)
+        self.verticalLayout_3.setSpacing(0)
+        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
+        self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
+        self.labelImageShow = QLabel(self.widget_3)
+        self.labelImageShow.setObjectName(u"labelImageShow")
+
+        self.verticalLayout_3.addWidget(self.labelImageShow)
+
 
         self.horizontalLayout.addWidget(self.widget_3)
 
@@ -128,7 +140,10 @@ class Ui_TabAdvanceImage(object):
         TabAdvanceImage.setWindowTitle(QCoreApplication.translate("TabAdvanceImage", u"\u9ad8\u7ea7\u56fe\u50cf\u8bc6\u522b-TabAdvanceImage", None))
         self.pushButton_screenshot.setText(QCoreApplication.translate("TabAdvanceImage", u"\u622a\u56fe", None))
         self.pushButton_test.setText(QCoreApplication.translate("TabAdvanceImage", u"\u6d4b\u8bd5", None))
+        self.pushButton_smart_pic_cut.setText(QCoreApplication.translate("TabAdvanceImage", u"\u622a\u56fe\n"
+"\u8bc6\u522b", None))
         self.checkBoxStartMonitor.setText(QCoreApplication.translate("TabAdvanceImage", u"\u542f\u52a8\u76d1\u63a7", None))
         self.statusLabel.setText(QCoreApplication.translate("TabAdvanceImage", u"\u5f53\u524d\u72b6\u6001\uff1a\u672a\u542f\u52a8", None))
+        self.labelImageShow.setText(QCoreApplication.translate("TabAdvanceImage", u"TextLabel", None))
     # retranslateUi
 

@@ -1,6 +1,7 @@
 import logging
 import win32gui # type: ignore
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtGui import QImage
 from DiabloClicker.helper.singleton_def import Singleton
 from DiabloClicker.service.db_op.desktop_op import DesktopService
 from DiabloClicker.service.img_ctrl.image_shop import ImageShop
@@ -9,6 +10,9 @@ from DiabloClicker.service.img_ctrl.image_shop import ImageShop
 class CapService(metaclass=Singleton):    
     target_hwmd = None
     target_program_title = '暗黑破坏神IV'
+    
+    def __init__(self):
+        self.cap_full_window_img: QImage = None
 
     def get_target_hwnd(self):
         logging.warning(f'获取目标窗口句柄,标题为 {self.target_program_title}')
@@ -31,7 +35,7 @@ class CapService(metaclass=Singleton):
         if not self.target_hwmd:
             return
         screen = QApplication.primaryScreen()
-        img = screen.grabWindow(self.target_hwmd).toImage()
+        img: QImage = screen.grabWindow(self.target_hwmd).toImage()
         if not img:
             return
         ImageShop().add_img_pot(img)
@@ -41,8 +45,9 @@ class CapService(metaclass=Singleton):
     def cap_full_screen(self):
         logging.warning('调用全屏截屏')
         screen = QApplication.primaryScreen()
-        img = screen.grabWindow(0).toImage()
+        img: QImage = screen.grabWindow(0).toImage()
         if not img:
             return
+        self.cap_full_window_img = img
         ImageShop().add_img_pot(img)
         ImageShop().save_to_screen_shoot_dir(img=img)

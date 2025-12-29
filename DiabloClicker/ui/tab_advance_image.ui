@@ -62,7 +62,7 @@
      <widget class="QPushButton" name="pushButton_test">
       <property name="geometry">
        <rect>
-        <x>110</x>
+        <x>290</x>
         <y>5</y>
         <width>71</width>
         <height>61</height>
@@ -70,6 +70,20 @@
       </property>
       <property name="text">
        <string>测试</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="pushButton_smart_pic_cut">
+      <property name="geometry">
+       <rect>
+        <x>90</x>
+        <y>5</y>
+        <width>71</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>截图
+识别</string>
       </property>
      </widget>
     </widget>
@@ -197,7 +211,32 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QWidget" name="widget_3" native="true"/>
+          <widget class="QWidget" name="widget_3" native="true">
+           <layout class="QVBoxLayout" name="verticalLayout_3">
+            <property name="spacing">
+             <number>0</number>
+            </property>
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <item>
+             <widget class="QLabel" name="labelImageShow">
+              <property name="text">
+               <string>TextLabel</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
          </item>
          <item>
           <widget class="QWidget" name="widget_4" native="true">

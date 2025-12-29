@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
-
+import os
 from DiabloClicker.helper.singleton_def import Singleton
 from PySide6.QtGui import QImage
 
@@ -11,6 +11,10 @@ class ImageShop(metaclass=Singleton):
 
     def __init__(self):
         self.id_images = {}
+        # 检查 目录是否存在，不存在则创建
+        dir_path = os.path.dirname(self.tmp_save_path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
     @classmethod
     def inc_id(cls):

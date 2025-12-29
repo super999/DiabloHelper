@@ -67,3 +67,14 @@ conda run -n diablohelper python launch.py
 - `ui_main_window.py` 由 `main_window.ui` 生成。修改 UI 后请用 Qt 工具重新生成
   （例如 `pyside6-uic`）。
 - OCR 演示会将输出写入 `output/` 目录。
+
+
+启动 designer 方法
+
+```bash
+pyside6-designer
+```
+或
+```bash
+qt6-tools designer
+```

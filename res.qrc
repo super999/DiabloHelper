@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="default">
+    <file>res/psd/ps导出/StartGreen.png</file>
+    <file>res/psd/ps导出/StopRed.png</file>
+  </qresource>
+</RCC>

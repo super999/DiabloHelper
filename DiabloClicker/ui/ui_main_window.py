@@ -52,17 +52,17 @@ class Ui_MainWindow(object):
         self.widget_frame_left.setStyleSheet(u"border: 1px solid gray;")
         self.verticalLayout_2 = QVBoxLayout(self.widget_frame_left)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
-        self.toolButton = QToolButton(self.widget_frame_left)
-        self.toolButton.setObjectName(u"toolButton")
-        self.toolButton.setMinimumSize(QSize(60, 60))
+        self.btn_timed_key = QToolButton(self.widget_frame_left)
+        self.btn_timed_key.setObjectName(u"btn_timed_key")
+        self.btn_timed_key.setMinimumSize(QSize(60, 60))
 
-        self.verticalLayout_2.addWidget(self.toolButton)
+        self.verticalLayout_2.addWidget(self.btn_timed_key)
 
-        self.toolButton_2 = QToolButton(self.widget_frame_left)
-        self.toolButton_2.setObjectName(u"toolButton_2")
-        self.toolButton_2.setMinimumSize(QSize(60, 60))
+        self.btn_smart_key = QToolButton(self.widget_frame_left)
+        self.btn_smart_key.setObjectName(u"btn_smart_key")
+        self.btn_smart_key.setMinimumSize(QSize(60, 60))
 
-        self.verticalLayout_2.addWidget(self.toolButton_2)
+        self.verticalLayout_2.addWidget(self.btn_smart_key)
 
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
@@ -80,6 +80,7 @@ class Ui_MainWindow(object):
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.tabWidget = QTabWidget(self.widget_frame_right)
         self.tabWidget.setObjectName(u"tabWidget")
+        self.tabWidget.setTabsClosable(True)
         self.tab = QWidget()
         self.tab.setObjectName(u"tab")
         self.tabWidget.addTab(self.tab, "")
@@ -106,7 +107,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(MainWindow)
@@ -114,8 +115,10 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
-        self.toolButton.setText(QCoreApplication.translate("MainWindow", u"\u5b9a\u65f6\u6309\u952e", None))
-        self.toolButton_2.setText(QCoreApplication.translate("MainWindow", u"\u667a\u80fd\u6309\u952e", None))
+        self.btn_timed_key.setText(QCoreApplication.translate("MainWindow", u"\u5b9a\u65f6\n"
+"\u6309\u952e", None))
+        self.btn_smart_key.setText(QCoreApplication.translate("MainWindow", u"\u667a\u80fd\n"
+"\u6309\u952e", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("MainWindow", u"Tab 1", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Tab 2", None))
     # retranslateUi

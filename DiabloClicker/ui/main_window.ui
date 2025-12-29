@@ -89,7 +89,7 @@
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_2">
           <item>
-           <widget class="QToolButton" name="toolButton">
+           <widget class="QToolButton" name="btn_timed_key">
             <property name="minimumSize">
              <size>
               <width>60</width>
@@ -103,7 +103,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="toolButton_2">
+           <widget class="QToolButton" name="btn_smart_key">
             <property name="minimumSize">
              <size>
               <width>60</width>
@@ -156,7 +156,10 @@
           <item>
            <widget class="QTabWidget" name="tabWidget">
             <property name="currentIndex">
-             <number>1</number>
+             <number>0</number>
+            </property>
+            <property name="tabsClosable">
+             <bool>true</bool>
             </property>
             <widget class="QWidget" name="tab">
              <attribute name="title">

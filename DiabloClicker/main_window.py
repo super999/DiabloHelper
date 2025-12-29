@@ -13,8 +13,8 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)
-        self.checkBoxStartMonitor.stateChanged.connect(self.on_start_monitor_changed)
-        self.pushButton_screenshot.clicked.connect(self.on_screenshot_clicked)  
+        # self.checkBoxStartMonitor.stateChanged.connect(self.on_start_monitor_changed)
+        # self.pushButton_screenshot.clicked.connect(self.on_screenshot_clicked)  
    
     # show事件
     def showEvent(self, event):

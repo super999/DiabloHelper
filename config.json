@@ -1,5 +1,15 @@
 {
     "target_window_title": "暗黑破坏神IV",
+    "hotkeys": {
+        "toggle_timed_key": "Ctrl+Num0"
+    },
+    "sounds": {
+        "timed_key": {
+            "start": "res/sounds/timed_key_start-0.wav",
+            "stop": "res/sounds/timed_key_stop-0.wav",
+            "volume": 0.8
+        }
+    },
     "screenshot": {
         "save_to_directory": true,
         "save_small_pic": true,

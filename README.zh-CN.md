@@ -78,3 +78,9 @@ pyside6-designer
 ```bash
 qt6-tools designer
 ```
+
+## pyinstaller 打包（可选）
+如果需要将应用打包为独立的可执行文件，可以使用 `pyinstaller`：
+```
+pyinstaller --onefile --windowed launch.py --console  --name="DiabloHelper"
+```

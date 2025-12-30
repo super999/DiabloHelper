@@ -18,6 +18,8 @@ from DiabloClicker.service.key_sender.timed_key_config_store import (
     save_timed_key_configs,
 )
 
+from DiabloClicker.service.sound.timed_key_sound import TimedKeySoundPlayer
+
 
 class TabTimedKey(QWidget, Ui_TabTimedKey):
     def __init__(self, parent=None):
@@ -25,6 +27,10 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
         self.key_configs = []
         self.key_status: bool = False
         self._sender_thread: Optional[TimedKeySenderThread] = None
+
+        # ====== 提示音（启动/停止） ======
+        # 启动时从 config.json 读取并缓存：避免每次点击都读文件。
+        self._sound_player = TimedKeySoundPlayer()
 
         # ====== “剩余时间”显示相关 ======
         # hotkey -> 表格行号，用于快速定位某个按键对应哪一行
@@ -336,10 +342,16 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
             self._remaining_timer.start()
 
             self.key_status = True
+
+            # 启动成功：播放“启动音效”
+            self._sound_player.play_start()
         else:
             # 停止：请求线程退出并等待
             self._stop_sender_thread()
             self.key_status = False
+
+            # 停止完成：播放“停止音效”
+            self._sound_player.play_stop()
 
         self.btn_start.setChecked(self.key_status)
         self.check_btn_status()
@@ -353,6 +365,9 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
             self.key_status = False
             self.btn_start.setChecked(False)
             self.check_btn_status()
+
+        # 线程自然退出也算“关闭”
+        self._sound_player.play_stop()
 
     def closeEvent(self, event):
         # 窗口关闭时，确保线程退出，避免进程残留

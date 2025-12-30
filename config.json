@@ -6,7 +6,7 @@
     "sounds": {
         "timed_key": {
             "start": "res/sounds/timed_key_start-0.wav",
-            "stop": "res/sounds/timed_key_stop-0.wav",
+            "stop": "res/sounds/timed_key_stop-3.wav",
             "volume": 0.8
         }
     },
@@ -22,9 +22,7 @@
             "ref_screen_height": 2160
         },
         "digit_area": [
-            {
-                
-            },
+            {},
             {
                 "index": 3,
                 "name": "技能3",
@@ -33,9 +31,7 @@
                 "width": 64,
                 "height": 57
             },
-            {
-                
-            }
+            {}
         ]
     },
     "logging": {
@@ -86,6 +82,12 @@
                 "enabled": true,
                 "interval": 3.0,
                 "description": "庇护"
+            },
+            {
+                "hotkey": "q",
+                "enabled": true,
+                "interval": 1.0,
+                "description": "快速喝药水"
             }
         ]
     }

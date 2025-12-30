@@ -1,5 +1,5 @@
 import logging
-from typing import Dict
+from typing import Callable, Dict
 
 from PySide6.QtWidgets import QMainWindow, QWidget
 
@@ -7,6 +7,7 @@ from DiabloClicker.service.hotkey.win_global_hotkey import (
     WM_HOTKEY,
     HotkeySpec,
     load_timed_key_toggle_hotkey,
+    load_timed_key_reset_hotkeys,
     register_hotkey,
     unregister_hotkey,
 )
@@ -32,10 +33,12 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
         # 需求：按下 Ctrl+Num0（可在 config.json 修改）切换“定时按键”的启动/停止。
         # 注意：RegisterHotKey 需要窗口句柄，放到 showEvent 里注册更稳。
         self._hotkeys_registered = False
+        # hotkey_id -> handler
+        self._hotkey_handlers: dict[int, Callable[[], None]] = {}
+        self._registered_hotkey_ids: set[int] = set()
+
         self._hotkey_toggle_timed_key_id = 0xA001
-        self._hotkey_toggle_timed_key_spec: HotkeySpec = load_timed_key_toggle_hotkey(
-            default_hotkey="Ctrl+Num0"
-        )
+        self._hotkey_toggle_timed_key_spec: HotkeySpec = load_timed_key_toggle_hotkey(default_hotkey="Ctrl+Num0")
    
     # show事件
     def showEvent(self, event):
@@ -85,6 +88,15 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
             tab.on_start_clicked()
         except Exception:
             logging.exception("处理全局热键失败：切换定时按键")
+
+    def _reset_single_skill_from_hotkey(self, skill_hotkey: str) -> None:
+        """全局热键触发：重置某个技能（等价于点击该行的“重置”按钮）。"""
+
+        try:
+            tab = self._get_or_open_timed_key_tab()
+            tab.trigger_reset_by_hotkey(skill_hotkey)
+        except Exception:
+            logging.exception("处理全局热键失败：重置技能 %s", skill_hotkey)
     
     def open_smart_key_tab(self):
         tab_name = "Smart Key"
@@ -123,9 +135,14 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
             logging.exception("获取窗口句柄失败，无法注册全局热键")
             return
 
+        # 先清理一次（防御：避免重复注册导致 UnregisterHotKey 漏掉）
+        self._unregister_hotkeys()
+
+        # 1) 切换定时按键启动/停止
         ok = register_hotkey(hwnd, self._hotkey_toggle_timed_key_id, self._hotkey_toggle_timed_key_spec)
         if ok:
-            self._hotkeys_registered = True
+            self._registered_hotkey_ids.add(self._hotkey_toggle_timed_key_id)
+            self._hotkey_handlers[self._hotkey_toggle_timed_key_id] = self._toggle_timed_key_from_hotkey
             logging.info(
                 "已注册全局热键：%s（用于切换定时按键）",
                 self._hotkey_toggle_timed_key_spec.display,
@@ -136,14 +153,54 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
                 self._hotkey_toggle_timed_key_spec.display,
             )
 
+        # 2) 单技能重置热键：从 timed_key.keys[*].toggle_reset_key 读取
+        reset_specs = load_timed_key_reset_hotkeys()
+        base_id = 0xA100
+        for idx, (skill_hotkey, spec) in enumerate(reset_specs):
+            hotkey_id = base_id + idx
+            ok2 = register_hotkey(hwnd, hotkey_id, spec)
+            if not ok2:
+                logging.warning(
+                    "技能重置热键注册失败：skill=%s hotkey=%s",
+                    skill_hotkey,
+                    spec.display,
+                )
+                continue
+
+            self._registered_hotkey_ids.add(hotkey_id)
+            self._hotkey_handlers[hotkey_id] = (lambda hk=skill_hotkey: self._reset_single_skill_from_hotkey(hk))
+            logging.info(
+                "已注册技能重置热键：skill=%s hotkey=%s",
+                skill_hotkey,
+                spec.display,
+            )
+
+        self._hotkeys_registered = len(self._registered_hotkey_ids) > 0
+
     def _unregister_hotkeys(self) -> None:
-        if not self._hotkeys_registered:
+        if not self._registered_hotkey_ids:
+            self._hotkeys_registered = False
+            self._hotkey_handlers.clear()
             return
+
         try:
             hwnd = int(self.winId())
-            unregister_hotkey(hwnd, self._hotkey_toggle_timed_key_id)
-        finally:
+        except Exception:
+            # 没 hwnd 也无法注销，但这里至少清理本地状态
+            self._registered_hotkey_ids.clear()
+            self._hotkey_handlers.clear()
             self._hotkeys_registered = False
+            return
+
+        for hotkey_id in list(self._registered_hotkey_ids):
+            try:
+                unregister_hotkey(hwnd, hotkey_id)
+            except Exception:
+                logging.exception("注销全局热键失败：id=%s", hotkey_id)
+
+        self._registered_hotkey_ids.clear()
+        self._hotkey_handlers.clear()
+        self._hotkeys_registered = False
 
     def nativeEvent(self, eventType, message):
         """接收 Windows 消息（用于 WM_HOTKEY）。"""
@@ -157,8 +214,9 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
                 msg = wintypes.MSG.from_address(int(message))
                 if msg.message == WM_HOTKEY:
                     hotkey_id = int(msg.wParam)
-                    if hotkey_id == self._hotkey_toggle_timed_key_id:
-                        self._toggle_timed_key_from_hotkey()
+                    handler = self._hotkey_handlers.get(hotkey_id)
+                    if handler is not None:
+                        handler()
                         return True, 0
         except Exception:
             logging.exception("nativeEvent 处理失败")

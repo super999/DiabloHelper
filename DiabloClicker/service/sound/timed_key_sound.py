@@ -12,6 +12,7 @@ from PySide6.QtMultimedia import QSoundEffect
 class TimedKeySoundConfig:
     start_sound_path: Optional[str]
     stop_sound_path: Optional[str]
+    reset_sound_path: Optional[str] = None
     volume: float = 1.0
 
 
@@ -53,10 +54,12 @@ def load_timed_key_sound_config() -> TimedKeySoundConfig:
 
     start = timed_key.get("start")
     stop = timed_key.get("stop")
+    reset = timed_key.get("reset")
     volume_raw = timed_key.get("volume", 1.0)
 
     start_path = str(start).strip() if isinstance(start, str) and start.strip() else None
     stop_path = str(stop).strip() if isinstance(stop, str) and stop.strip() else None
+    reset_path = str(reset).strip() if isinstance(reset, str) and reset.strip() else None
 
     try:
         volume = float(volume_raw)
@@ -69,7 +72,12 @@ def load_timed_key_sound_config() -> TimedKeySoundConfig:
     if volume > 1:
         volume = 1.0
 
-    return TimedKeySoundConfig(start_sound_path=start_path, stop_sound_path=stop_path, volume=volume)
+    return TimedKeySoundConfig(
+        start_sound_path=start_path,
+        stop_sound_path=stop_path,
+        reset_sound_path=reset_path,
+        volume=volume,
+    )
 
 
 class TimedKeySoundPlayer:
@@ -85,6 +93,7 @@ class TimedKeySoundPlayer:
 
         self._start_effect = QSoundEffect()
         self._stop_effect = QSoundEffect()
+        self._reset_effect = QSoundEffect()
 
         self._apply_config()
 
@@ -96,9 +105,16 @@ class TimedKeySoundPlayer:
         # volume 需要先设置好
         self._start_effect.setVolume(self._config.volume)
         self._stop_effect.setVolume(self._config.volume)
+        self._reset_effect.setVolume(self._config.volume)
 
         self._set_effect_source(self._start_effect, self._config.start_sound_path)
         self._set_effect_source(self._stop_effect, self._config.stop_sound_path)
+
+        # reset 音效：优先使用单独配置；若未配置，则回退为 start/stop（确保重置有声音）
+        reset_path = self._config.reset_sound_path
+        if not reset_path:
+            reset_path = self._config.start_sound_path or self._config.stop_sound_path
+        self._set_effect_source(self._reset_effect, reset_path)
 
     @staticmethod
     def _set_effect_source(effect: QSoundEffect, path_str: Optional[str]) -> None:
@@ -126,3 +142,8 @@ class TimedKeySoundPlayer:
         if self._stop_effect.source().isEmpty():
             return
         self._stop_effect.play()
+
+    def play_reset(self) -> None:
+        if self._reset_effect.source().isEmpty():
+            return
+        self._reset_effect.play()

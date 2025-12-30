@@ -95,7 +95,7 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
         configs = load_timed_key_configs()
         if configs:
             for cfg in configs:
-                self.add_row(cfg.hotkey, cfg.enabled, cfg.interval, cfg.description)
+                self.add_row(cfg.hotkey, cfg.enabled, cfg.interval, cfg.description, cfg.toggle_reset_key)
             return
 
         # 默认行（第一次使用时没有配置，就走这里）
@@ -106,7 +106,14 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
         self.add_row('5', True, 12,  '抗争光环')
         self.add_row('6', True, 3,  '庇护')
         
-    def add_row(self, hotkey: str, enabled: bool, interval: float, description: str):
+    def add_row(
+        self,
+        hotkey: str,
+        enabled: bool,
+        interval: float,
+        description: str,
+        toggle_reset_key: Optional[str] = None,
+    ):
         row_position = self.tableWidget.rowCount()
         self.tableWidget.insertRow(row_position)
 
@@ -154,7 +161,13 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
         # 描述 列
         description_item = QTableWidgetItem(description)
         self.tableWidget.setItem(row_position, 5, description_item)
-        key_config = KeyConfig(hotkey=hotkey, enabled=enabled, interval=float(interval), description=description)
+        key_config = KeyConfig(
+            hotkey=hotkey,
+            enabled=enabled,
+            interval=float(interval),
+            description=description,
+            toggle_reset_key=toggle_reset_key,
+        )
         self.key_configs.append(key_config)
     
     def bind_events(self):
@@ -182,6 +195,12 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
         - 所以点击“启动”时要用最新的 UI 数据
         """
 
+        # 说明：表格里没有 toggle_reset_key 列，但我们需要保留配置。
+        # 所以这里从 self.key_configs 中用 hotkey 做一次映射，把 toggle_reset_key 带回去。
+        reset_key_by_hotkey: dict[str, Optional[str]] = {
+            c.hotkey: c.toggle_reset_key for c in self.key_configs
+        }
+
         configs: list[KeyConfig] = []
         for row in range(self.tableWidget.rowCount()):
             hotkey_item = self.tableWidget.item(row, 0)
@@ -202,9 +221,27 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
                 interval = 0.0
 
             configs.append(
-                KeyConfig(hotkey=hotkey, enabled=enabled, interval=interval, description=description)
+                KeyConfig(
+                    hotkey=hotkey,
+                    enabled=enabled,
+                    interval=interval,
+                    description=description,
+                    toggle_reset_key=reset_key_by_hotkey.get(hotkey),
+                )
             )
         return configs
+
+    def trigger_reset_by_hotkey(self, hotkey: str) -> None:
+        """供全局快捷键调用：等价于点击该行的“重置”按钮。
+
+        行为：
+        - 仅在线程运行时生效
+        - UI 立即显示 1.0s
+        - 线程侧把 next_due 调整为 now + 1s
+        - 播放 reset 音效（可配置）
+        """
+
+        self._do_reset_hotkey(hotkey)
 
     def _on_reset_clicked(self):
         """点击“重置”按钮：把该行的剩余时间强制改为 1 秒。
@@ -224,6 +261,9 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
         if not hotkey:
             return
 
+        self._do_reset_hotkey(hotkey)
+
+    def _do_reset_hotkey(self, hotkey: str) -> None:
         # 如果线程没在跑，就不处理（避免 UI 显示与实际不一致）
         if not (self._sender_thread and self._sender_thread.isRunning()):
             return
@@ -238,6 +278,9 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
 
         # 2) 通知线程：把 next_due 改为 1 秒后
         self._sender_thread.request_next_due_in(hotkey, 1.0)
+
+        # 3) 提示音
+        self._sound_player.play_reset()
 
     def _rebuild_hotkey_row_index(self):
         """重建 hotkey->row 的索引。

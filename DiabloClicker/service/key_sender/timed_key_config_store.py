@@ -102,12 +102,20 @@ def load_timed_key_configs() -> list[KeyConfig]:
 
         description = str(raw.get("description") or "").strip()
 
+        toggle_reset_key_raw = raw.get("toggle_reset_key")
+        toggle_reset_key = (
+            str(toggle_reset_key_raw).strip()
+            if isinstance(toggle_reset_key_raw, str) and toggle_reset_key_raw.strip()
+            else None
+        )
+
         configs.append(
             KeyConfig(
                 hotkey=hotkey,
                 enabled=enabled,
                 interval=interval,
                 description=description,
+                toggle_reset_key=toggle_reset_key,
             )
         )
 
@@ -130,14 +138,18 @@ def save_timed_key_configs(configs: list[KeyConfig]) -> None:
     root = data[TIMED_KEY_ROOT_KEY]
     assert isinstance(root, dict)
 
-    root[TIMED_KEY_LIST_KEY] = [
-        {
+    items: list[dict[str, Any]] = []
+    for c in configs:
+        item: dict[str, Any] = {
             "hotkey": c.hotkey,
             "enabled": bool(c.enabled),
             "interval": float(c.interval),
             "description": c.description,
         }
-        for c in configs
-    ]
+        if c.toggle_reset_key:
+            item["toggle_reset_key"] = c.toggle_reset_key
+        items.append(item)
+
+    root[TIMED_KEY_LIST_KEY] = items
 
     _write_config_json(data)

@@ -161,6 +161,68 @@ def load_timed_key_toggle_hotkey(default_hotkey: str = "Ctrl+Num0") -> HotkeySpe
     return spec
 
 
+def load_timed_key_reset_hotkeys() -> list[tuple[str, HotkeySpec]]:
+    """从 cwd/config.json 读取每个技能的“重置热键”。
+
+    期望结构：
+    {
+      "timed_key": {
+        "keys": [
+          {"hotkey": "1", "toggle_reset_key": "Ctrl+Num1", ...},
+          ...
+        ]
+      }
+    }
+
+    返回：
+    - [(skill_hotkey, HotkeySpec), ...]
+    - 解析失败/缺失则返回 []
+    """
+
+    config_path = Path.cwd() / "config.json"
+    if not config_path.exists():
+        return []
+
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        logging.exception("读取 config.json 失败：无法加载 timed_key.keys[*].toggle_reset_key")
+        return []
+
+    timed_key = data.get("timed_key")
+    if not isinstance(timed_key, dict):
+        return []
+    items = timed_key.get("keys")
+    if not isinstance(items, list):
+        return []
+
+    result: list[tuple[str, HotkeySpec]] = []
+    for raw in items:
+        if not isinstance(raw, dict):
+            continue
+
+        skill_hotkey = str(raw.get("hotkey") or "").strip()
+        if not skill_hotkey:
+            continue
+
+        toggle_reset_key = raw.get("toggle_reset_key")
+        if not isinstance(toggle_reset_key, str) or not toggle_reset_key.strip():
+            continue
+
+        spec = parse_hotkey_spec(toggle_reset_key.strip())
+        if spec is None:
+            logging.warning(
+                "重置热键解析失败：skill=%s toggle_reset_key=%s",
+                skill_hotkey,
+                toggle_reset_key,
+            )
+            continue
+
+        result.append((skill_hotkey, spec))
+
+    return result
+
+
 def register_hotkey(hwnd: int, hotkey_id: int, spec: HotkeySpec) -> bool:
     """注册全局热键。
 

@@ -44,6 +44,8 @@ class KeyConfig:
     enabled: bool
     interval: float
     description: str
+    # 该字段用于“全局快捷键重置单个技能”（UI/主窗口会用到），线程发键逻辑不依赖它。
+    toggle_reset_key: Optional[str] = None
 
 
 # 固定配置文件位置：以“项目启动路径(cwd)”为根目录的 config.json

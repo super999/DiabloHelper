@@ -7,6 +7,7 @@
         "timed_key": {
             "start": "res/sounds/timed_key_start-0.wav",
             "stop": "res/sounds/timed_key_stop-3.wav",
+            "reset": "res/sounds/timed_key_reset.wav",
             "volume": 0.8
         }
     },
@@ -51,7 +52,8 @@
                 "hotkey": "1",
                 "enabled": false,
                 "interval": 6.12,
-                "description": "坠天星落"
+                "description": "坠天星落",
+                "toggle_reset_key": "Ctrl+Num1"
             },
             {
                 "hotkey": "2",

@@ -22,17 +22,55 @@
             "ref_screen_width": 3840,
             "ref_screen_height": 2160
         },
-        "digit_area": [
-            {},
+        "skill_area": [
+            {
+                "index": 1,
+                "name": "技能1",
+                "x": 1548,
+                "y": 1957,
+                "width": 115,
+                "height": 107
+            },
+            {
+                "index": 2,
+                "name": "技能2",
+                "x": 1674,
+                "y": 1935,
+                "width": 115,
+                "height": 107
+            },
             {
                 "index": 3,
                 "name": "技能3",
-                "x": 1832,
+                "x": 1800,
                 "y": 1935,
-                "width": 64,
-                "height": 57
+                "width": 115,
+                "height": 107
             },
-            {}
+            {
+                "index": 4,
+                "name": "技能4",
+                "x": 1926,
+                "y": 1935,
+                "width": 115,
+                "height": 107
+            },
+            {
+                "index": 5,
+                "name": "技能5",
+                "x": 2052,
+                "y": 1935,
+                "width": 115,
+                "height": 107
+            },
+            {
+                "index": 6,
+                "name": "技能6",
+                "x": 2178,
+                "y": 1935,
+                "width": 115,
+                "height": 107
+            }
         ]
     },
     "logging": {
@@ -59,13 +97,15 @@
                 "hotkey": "2",
                 "enabled": true,
                 "interval": 51.0,
-                "description": "正义仲裁官"
+                "description": "正义仲裁官",
+                "toggle_reset_key": "Ctrl+Num2"
             },
             {
                 "hotkey": "3",
                 "enabled": true,
                 "interval": 3.0,
-                "description": "奉献"
+                "description": "奉献",
+                "toggle_reset_key": "Ctrl+Num3"
             },
             {
                 "hotkey": "4",

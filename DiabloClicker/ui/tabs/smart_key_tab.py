@@ -23,6 +23,16 @@ class _SmallPicRegion:
     ref_screen_height: Optional[int] = None
 
 
+@dataclass(frozen=True)
+class _SkillArea:
+    index: int
+    name: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+
 class TabSmartKey(QWidget, Ui_TabAdvanceImage):
     TAB_NAME = "智能按键"
 
@@ -31,12 +41,21 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self.setupUi(self)
         self.bind_events()
 
-        # 记录最后一次截图（用于窗口尺寸变化时重新缩放显示）
+        # 记录最后一次全屏截图（用于裁剪多个区域）
+        self._full_image: Optional[QImage] = None
+
+        # 记录最后一次用于展示的图片（用于窗口尺寸变化时重新缩放显示）
         self._last_image: Optional[QImage] = None
 
         # small_pic_region：程序启动时读取一次并缓存。
         # 这样点击“裁剪”按钮时不会频繁读磁盘/解析 JSON。
         self._small_pic_region: Optional[_SmallPicRegion] = self._load_small_pic_region_from_config()
+
+        # skill_area：程序启动时读取一次并缓存。
+        # 用于“截图识别”时裁剪多个技能区域。
+        self._skill_areas: list[_SkillArea] = self._load_skill_areas_from_config()
+        # 裁剪后的技能区域缓存：index -> QImage
+        self._skill_area_images: dict[int, QImage] = {}
 
         # 保持图片比例：不要让 QLabel 自动拉伸填满（会变形）
         self.labelImageShow.setScaledContents(False)
@@ -151,6 +170,64 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             ref_screen_height=ref_h,
         )
 
+    def _load_skill_areas_from_config(self) -> list[_SkillArea]:
+        """从 config.json 读取 screenshot.skill_area。
+
+        期望结构：
+        {
+          "screenshot": {
+            "skill_area": [
+              {"index": 1, "name": "技能1", "x": 1548, "y": 1957, "width": 115, "height": 107},
+              ...
+            ]
+          }
+        }
+
+        返回：
+        - _SkillArea 列表（可能为空）
+        """
+
+        config_path = Path.cwd() / "config.json"
+        if not config_path.exists():
+            return []
+
+        try:
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception:
+            logging.exception("读取 config.json 失败：无法读取 skill_area")
+            return []
+
+        screenshot = data.get("screenshot")
+        if not isinstance(screenshot, dict):
+            return []
+
+        raw_list = screenshot.get("skill_area")
+        if not isinstance(raw_list, list):
+            return []
+
+        areas: list[_SkillArea] = []
+        for raw in raw_list:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                idx = int(raw.get("index", 0))
+                name = str(raw.get("name") or "").strip() or f"skill_{idx}"
+                x = int(raw.get("x", 0))
+                y = int(raw.get("y", 0))
+                w = int(raw.get("width", 0))
+                h = int(raw.get("height", 0))
+            except Exception:
+                continue
+
+            if idx <= 0 or w <= 0 or h <= 0:
+                continue
+
+            areas.append(_SkillArea(index=idx, name=name, x=x, y=y, width=w, height=h))
+
+        # 按 index 排序，保证稳定
+        areas.sort(key=lambda a: a.index)
+        return areas
+
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         # 窗口/控件大小变化时，重新等比缩放，让宽/高尽量贴边
@@ -167,15 +244,16 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             logging.warning("截图失败：cap_full_window_img 为空")
             return
 
-        # 先缓存原图，再统一走“等比最大化显示”逻辑
+        # 缓存全图（用于裁剪），并默认展示全图
+        self._full_image = img
         self._last_image = img
         self._update_image_view()
         
     def on_smart_pic_cut_clicked(self) -> None:
         logging.info("Smart Pic Cut button clicked")
-        # 根据当前截图，裁剪出智能按键区域并保存
-        if self._last_image is None or self._last_image.isNull():
-            logging.warning("无法裁剪智能按键区域：没有有效截图")
+        # 根据当前截图，裁剪出智能按键区域 + 技能区域并保存
+        if self._full_image is None or self._full_image.isNull():
+            logging.warning("无法裁剪：没有有效全屏截图")
             return
 
         # 直接使用启动时缓存的配置（不在点击时读配置文件）
@@ -185,8 +263,8 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             return
 
         # 如果配置提供了参考分辨率，则按当前截图尺寸等比例缩放裁剪区域。
-        img_w = self._last_image.width()
-        img_h = self._last_image.height()
+        img_w = self._full_image.width()
+        img_h = self._full_image.height()
         x = region.x
         y = region.y
         w = region.width
@@ -226,17 +304,100 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             return
 
         # ===== 裁剪并保存 =====
-        img_small = self._last_image.copy(x, y, w2, h2)
+        img_small = self._full_image.copy(x, y, w2, h2)
         if img_small.isNull():
             logging.warning("裁剪失败：得到的图片为空")
             return
 
         # 保存到固定路径（ImageShop.tmp_cut_save_path）
-        ImageShop.save_small_pic(self._last_image, x, y, w2, h2)
+        ImageShop.save_small_pic(self._full_image, x, y, w2, h2)
         logging.info(f"已裁剪并保存 small_pic：x={x}, y={y}, w={w2}, h={h2}")
+
+        # ===== 裁剪 skill_area（前 5 个）并保存+缓存 =====
+        self._cut_and_cache_skill_areas(max_count=5)
 
         # ===== UI 回显 =====
         # 让用户立刻看到裁剪结果：用裁剪后的图替换当前显示
         self._last_image = img_small
         self._update_image_view()
+
+    def _cut_and_cache_skill_areas(self, max_count: int = 5) -> None:
+        """从全屏截图里裁剪 skill_area 列表中的前 max_count 个区域。
+
+        - 每个区域保存为：screen_shoot/skill_{index}.png
+        - 同时缓存到 self._skill_area_images[index]
+        """
+
+        if self._full_image is None or self._full_image.isNull():
+            return
+
+        if not self._skill_areas:
+            logging.warning("未配置 skill_area，跳过技能区域裁剪")
+            return
+
+        # 参考分辨率（优先用 small_pic_region 的 ref）
+        ref_w = self._small_pic_region.ref_screen_width if self._small_pic_region else None
+        ref_h = self._small_pic_region.ref_screen_height if self._small_pic_region else None
+
+        img_w = self._full_image.width()
+        img_h = self._full_image.height()
+
+        scale_x = 1.0
+        scale_y = 1.0
+        if ref_w and ref_h:
+            scale_x = img_w / float(ref_w)
+            scale_y = img_h / float(ref_h)
+
+        self._skill_area_images.clear()
+
+        for area in self._skill_areas[:max_count]:
+            x = area.x
+            y = area.y
+            w = area.width
+            h = area.height
+
+            # 若有参考分辨率则缩放
+            if ref_w and ref_h:
+                x = int(round(x * scale_x))
+                y = int(round(y * scale_y))
+                w = int(round(w * scale_x))
+                h = int(round(h * scale_y))
+
+            # 边界保护
+            x = max(0, x)
+            y = max(0, y)
+            x2 = min(img_w, x + w)
+            y2 = min(img_h, y + h)
+            w2 = max(0, x2 - x)
+            h2 = max(0, y2 - y)
+            if w2 <= 0 or h2 <= 0:
+                logging.warning(
+                    "技能区域越界或无效：index=%s name=%s region=(%s,%s,%s,%s) image=(%sx%s)",
+                    area.index,
+                    area.name,
+                    x,
+                    y,
+                    w,
+                    h,
+                    img_w,
+                    img_h,
+                )
+                continue
+
+            img_cut = self._full_image.copy(x, y, w2, h2)
+            if img_cut.isNull():
+                logging.warning("技能区域裁剪失败：index=%s name=%s", area.index, area.name)
+                continue
+
+            self._skill_area_images[area.index] = img_cut
+            ImageShop.save_skill_area(self._full_image, x, y, w2, h2, area.index)
+            logging.info(
+                "已裁剪技能区域：index=%s name=%s x=%s y=%s w=%s h=%s",
+                area.index,
+                area.name,
+                x,
+                y,
+                w2,
+                h2,
+            )
         

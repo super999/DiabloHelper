@@ -84,3 +84,18 @@ qt6-tools designer
 ```
 pyinstaller --onefile --windowed launch.py --console  --name="DiabloHelper"
 ```
+
+### 打包时复制 res/sounds 到 dist（推荐）
+
+如果你希望在打包后的 `dist/` 目录里也能看到并携带 `res/sounds`（例如用于提示音），
+可以直接运行脚本：
+
+```bash
+tools\build_pyinstaller.bat
+```
+
+脚本会做两件事：
+- 先执行 PyInstaller 打包
+- 再把 `res/sounds` 复制到 `dist/res/sounds`
+
+注意：`--windowed` 和 `--console` 通常二选一；如果你不希望弹出控制台窗口，可以去掉 `--console`。

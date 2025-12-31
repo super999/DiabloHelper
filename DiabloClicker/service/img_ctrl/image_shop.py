@@ -8,6 +8,7 @@ class ImageShop(metaclass=Singleton):
     id_next = 0
     tmp_save_path = "screen_shoot/screenshot_tmp.png"
     tmp_cut_save_path = "screen_shoot/screenshot_small.png"
+    tmp_skill_save_tpl = "screen_shoot/skill_{index}.png"
 
     def __init__(self):
         self.id_images = {}
@@ -35,3 +36,14 @@ class ImageShop(metaclass=Singleton):
     def save_small_pic(cls, img: QImage, x: int, y: int, w: int, h: int):
         img_small = img.copy(x, y, w, h)
         img_small.save(cls.tmp_cut_save_path)
+
+    @classmethod
+    def save_skill_area(cls, img: QImage, x: int, y: int, w: int, h: int, index: int):
+        """保存单个技能区域截图。
+
+        保存路径：screen_shoot/skill_{index}.png
+        """
+
+        img_small = img.copy(x, y, w, h)
+        save_path = cls.tmp_skill_save_tpl.format(index=index)
+        img_small.save(save_path)

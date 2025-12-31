@@ -42,6 +42,9 @@ class Ui_TabAdvanceImage(object):
         self.pushButton_smart_pic_cut = QPushButton(self.widget_L01)
         self.pushButton_smart_pic_cut.setObjectName(u"pushButton_smart_pic_cut")
         self.pushButton_smart_pic_cut.setGeometry(QRect(90, 5, 71, 61))
+        self.pushButton_pic_match = QPushButton(self.widget_L01)
+        self.pushButton_pic_match.setObjectName(u"pushButton_pic_match")
+        self.pushButton_pic_match.setGeometry(QRect(170, 5, 71, 61))
 
         self.verticalLayout.addWidget(self.widget_L01)
 
@@ -142,6 +145,8 @@ class Ui_TabAdvanceImage(object):
         self.pushButton_test.setText(QCoreApplication.translate("TabAdvanceImage", u"\u6d4b\u8bd5", None))
         self.pushButton_smart_pic_cut.setText(QCoreApplication.translate("TabAdvanceImage", u"\u622a\u56fe\n"
 "\u8bc6\u522b", None))
+        self.pushButton_pic_match.setText(QCoreApplication.translate("TabAdvanceImage", u"\u56fe\u7247\n"
+"\u5339\u914d", None))
         self.checkBoxStartMonitor.setText(QCoreApplication.translate("TabAdvanceImage", u"\u542f\u52a8\u76d1\u63a7", None))
         self.statusLabel.setText(QCoreApplication.translate("TabAdvanceImage", u"\u5f53\u524d\u72b6\u6001\uff1a\u672a\u542f\u52a8", None))
         self.labelImageShow.setText(QCoreApplication.translate("TabAdvanceImage", u"TextLabel", None))

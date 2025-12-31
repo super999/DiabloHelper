@@ -22,6 +22,46 @@
             "ref_screen_width": 3840,
             "ref_screen_height": 2160
         },
+        "skill_key_config":{
+            "skill_1_key": "1",
+            "skill_2_key": "2",
+            "skill_3_key": "3",
+            "skill_4_key": "4",
+            "skill_5_key": "5",
+            "skill_6_key": "6"
+        },
+        "skill_icon":[
+            {
+                "index": 1,
+                "name": "坠天星落",
+                "icon_path": "res/icons/skill/坠天星落.png"
+            },
+            {
+                "index": 2,
+                "name": "正义仲裁官",
+                "icon_path": "res/icons/skill/正义仲裁官.png"
+            },
+            {
+                "index": 3,
+                "name": "奉献",
+                "icon_path": "res/icons/skill/奉献.png"
+            },
+            {
+                "index": 4,
+                "name": "狂信光环",
+                "icon_path": "res/icons/skill/狂信光环.png"
+            },
+            {
+                "index": 5,
+                "name": "抗争光环",
+                "icon_path": "res/icons/skill/抗争光环.png"
+            },
+            {
+                "index": 6,
+                "name": "庇护",
+                "icon_path": "res/icons/skill/庇护.png"
+            }
+        ],
         "skill_area": [
             {
                 "index": 1,
@@ -35,7 +75,7 @@
                 "index": 2,
                 "name": "技能2",
                 "x": 1674,
-                "y": 1935,
+                "y": 1957,
                 "width": 115,
                 "height": 107
             },
@@ -43,7 +83,7 @@
                 "index": 3,
                 "name": "技能3",
                 "x": 1800,
-                "y": 1935,
+                "y": 1957,
                 "width": 115,
                 "height": 107
             },
@@ -51,7 +91,7 @@
                 "index": 4,
                 "name": "技能4",
                 "x": 1926,
-                "y": 1935,
+                "y": 1957,
                 "width": 115,
                 "height": 107
             },
@@ -59,7 +99,7 @@
                 "index": 5,
                 "name": "技能5",
                 "x": 2052,
-                "y": 1935,
+                "y": 1957,
                 "width": 115,
                 "height": 107
             },
@@ -67,7 +107,7 @@
                 "index": 6,
                 "name": "技能6",
                 "x": 2178,
-                "y": 1935,
+                "y": 1957,
                 "width": 115,
                 "height": 107
             }

@@ -33,6 +33,13 @@ class _SkillArea:
     height: int
 
 
+@dataclass(frozen=True)
+class _SkillIcon:
+    index: int
+    name: str
+    icon_path: Path
+
+
 class TabSmartKey(QWidget, Ui_TabAdvanceImage):
     TAB_NAME = "智能按键"
 
@@ -57,6 +64,17 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         # 裁剪后的技能区域缓存：index -> QImage
         self._skill_area_images: dict[int, QImage] = {}
 
+        # skill_key_config：index -> hotkey（用于日志展示/后续扩展）
+        self._skill_key_by_index: dict[int, str] = self._load_skill_key_config_from_config()
+
+        # skill_icon：index -> icon 配置（用于图片匹配）
+        self._skill_icons_by_index: dict[int, _SkillIcon] = {
+            icon.index: icon for icon in self._load_skill_icons_from_config()
+        }
+
+        # 最近一次图片匹配结果：index -> score
+        self._last_match_score: dict[int, float] = {}
+
         # 保持图片比例：不要让 QLabel 自动拉伸填满（会变形）
         self.labelImageShow.setScaledContents(False)
         self.labelImageShow.setAlignment(Qt.AlignCenter)
@@ -73,6 +91,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         # 绑定 UI 事件处理函数
         self.pushButton_screenshot.clicked.connect(self.on_screenshot_clicked)
         self.pushButton_smart_pic_cut.clicked.connect(self.on_smart_pic_cut_clicked)
+        self.pushButton_pic_match.clicked.connect(self.on_pic_match_clicked)
 
     def _update_image_view(self) -> None:
         """按当前 QLabel 可用区域，等比最大化显示最后一张截图。"""
@@ -227,6 +246,188 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         # 按 index 排序，保证稳定
         areas.sort(key=lambda a: a.index)
         return areas
+
+    def _load_skill_key_config_from_config(self) -> dict[int, str]:
+        """从 config.json 读取 screenshot.skill_key_config。
+
+        期望结构：
+        {
+          "screenshot": {
+            "skill_key_config": {
+              "skill_1_key": "1",
+              "skill_2_key": "2",
+              ...
+            }
+          }
+        }
+
+        返回：
+        - {index: hotkey_str}
+        """
+
+        config_path = Path.cwd() / "config.json"
+        if not config_path.exists():
+            return {}
+
+        try:
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception:
+            logging.exception("读取 config.json 失败：无法读取 skill_key_config")
+            return {}
+
+        screenshot = data.get("screenshot")
+        if not isinstance(screenshot, dict):
+            return {}
+
+        raw = screenshot.get("skill_key_config")
+        if not isinstance(raw, dict):
+            return {}
+
+        out: dict[int, str] = {}
+        for k, v in raw.items():
+            if not isinstance(k, str):
+                continue
+            # 期望 key 形如 skill_1_key
+            digits = "".join(ch for ch in k if ch.isdigit())
+            if not digits:
+                continue
+            try:
+                idx = int(digits)
+            except Exception:
+                continue
+            if idx <= 0:
+                continue
+            hotkey = str(v).strip()
+            if not hotkey:
+                continue
+            out[idx] = hotkey
+
+        return out
+
+    def _load_skill_icons_from_config(self) -> list[_SkillIcon]:
+        """从 config.json 读取 screenshot.skill_icon。
+
+        期望结构：
+        {
+          "screenshot": {
+            "skill_icon": [
+              {"index": 1, "name": "xxx", "icon_path": "res/icons/skill/xxx.png"},
+              ...
+            ]
+          }
+        }
+
+        返回：
+        - _SkillIcon 列表（可能为空）
+        """
+
+        config_path = Path.cwd() / "config.json"
+        if not config_path.exists():
+            return []
+
+        try:
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception:
+            logging.exception("读取 config.json 失败：无法读取 skill_icon")
+            return []
+
+        screenshot = data.get("screenshot")
+        if not isinstance(screenshot, dict):
+            return []
+
+        raw_list = screenshot.get("skill_icon")
+        if not isinstance(raw_list, list):
+            return []
+
+        icons: list[_SkillIcon] = []
+        for raw in raw_list:
+            if not isinstance(raw, dict):
+                continue
+            try:
+                idx = int(raw.get("index", 0))
+                name = str(raw.get("name") or "").strip() or f"skill_{idx}"
+                icon_path_str = str(raw.get("icon_path") or "").strip()
+            except Exception:
+                continue
+
+            if idx <= 0 or not icon_path_str:
+                continue
+
+            icon_path = Path(icon_path_str)
+            if not icon_path.is_absolute():
+                icon_path = Path.cwd() / icon_path
+
+            icons.append(_SkillIcon(index=idx, name=name, icon_path=icon_path))
+
+        icons.sort(key=lambda i: i.index)
+        return icons
+
+    def _qimage_to_cv_bgr(self, img: QImage):
+        """把 QImage 转成 OpenCV 的 BGR numpy 数组。"""
+
+        # 延迟导入：避免环境没装 opencv/numpy 时直接崩
+        import numpy as np  # type: ignore
+
+        if img.format() != QImage.Format.Format_RGBA8888:
+            img = img.convertToFormat(QImage.Format.Format_RGBA8888)
+
+        width = img.width()
+        height = img.height()
+        bytes_per_line = img.bytesPerLine()
+
+        # PySide6: QImage.bits() 通常返回 memoryview（没有 setsize）。
+        # PyQt/SIP: 可能返回支持 setsize() 的指针对象。
+        ptr = img.bits()
+        size = int(img.sizeInBytes())
+        if hasattr(ptr, "setsize"):
+            # 兼容 PyQt
+            ptr.setsize(size)  # type: ignore[attr-defined]
+
+        # 统一拿到一个长度正确的 buffer（尽量零拷贝；必要时切片）
+        buf = ptr
+        if isinstance(buf, memoryview):
+            buf = buf[:size]
+        else:
+            try:
+                buf = memoryview(buf)[:size]
+            except TypeError:
+                # 极端情况下退化为 bytes（会拷贝，但保证可用）
+                buf = bytes(ptr)[:size]
+
+        # QImage 每行可能按 32bit 对齐，bytesPerLine 可能 > width*4。
+        # 先按 stride 读出，再裁剪到有效像素区域。
+        arr = np.frombuffer(buf, dtype=np.uint8)
+        arr = arr.reshape((height, bytes_per_line))
+        arr = arr[:, : width * 4]
+        arr = arr.reshape((height, width, 4))
+        # RGBA -> BGR
+        bgr = arr[:, :, [2, 1, 0]].copy()
+        return bgr
+
+    def _cv2_imread_unicode(self, path: Path):
+        """兼容 Windows Unicode 路径的图片读取。
+
+        OpenCV 在部分环境下对含中文/Unicode 的路径支持不稳定，
+        这里用 Python 侧读 bytes，再用 cv2.imdecode 解码。
+        """
+
+        import cv2  # type: ignore
+        import numpy as np  # type: ignore
+
+        try:
+            data = np.fromfile(str(path), dtype=np.uint8)
+        except Exception:
+            return None
+
+        if data.size == 0:
+            return None
+
+        try:
+            img = cv2.imdecode(data, cv2.IMREAD_COLOR)
+        except Exception:
+            return None
+
+        return img
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -401,3 +602,106 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 h2,
             )
         
+    def on_pic_match_clicked(self) -> None:
+        logging.info("Pic Match button clicked")
+
+        # 需要先有截图；如果还没裁剪过，自动裁剪一次（前 5 个）
+        if self._full_image is None or self._full_image.isNull():
+            logging.warning("无法图片匹配：没有有效全屏截图，请先点击‘截图’")
+            self.statusLabel.setText("当前状态：请先截图")
+            return
+
+        if not self._skill_area_images:
+            self._cut_and_cache_skill_areas(max_count=5)
+
+        if not self._skill_area_images:
+            logging.warning("无法图片匹配：没有可用的技能区域截图（skill_area_images 为空）")
+            self.statusLabel.setText("当前状态：没有技能截图")
+            return
+
+        # OpenCV 模板匹配（参考你之前的 cmp_single_pic 实现）
+        try:
+            import cv2  # type: ignore
+            import numpy as np  # type: ignore
+        except Exception:
+            logging.exception("缺少依赖：图片匹配需要安装 opencv-python 与 numpy")
+            self.statusLabel.setText("当前状态：缺少 opencv/numpy")
+            return
+
+        threshold = 0.89
+        ok_count = 0
+        total = 0
+        self._last_match_score.clear()
+
+        for idx in sorted(self._skill_area_images.keys()):
+            total += 1
+            img_qt = self._skill_area_images[idx]
+            icon = self._skill_icons_by_index.get(idx)
+            hotkey = self._skill_key_by_index.get(idx, "")
+
+            if icon is None:
+                logging.warning("技能 %s 没有配置 skill_icon，跳过匹配", idx)
+                continue
+
+            templ_path = str(icon.icon_path)
+            if not icon.icon_path.exists():
+                logging.warning("技能 %s 模板图不存在：%s", idx, templ_path)
+                continue
+
+            try:
+                target_bgr = self._qimage_to_cv_bgr(img_qt)
+            except Exception:
+                logging.exception("技能 %s：QImage 转 OpenCV 失败", idx)
+                continue
+
+            # Windows 下中文路径可能导致 cv2.imread 失败，优先用 imdecode 方式读取
+            templ_bgr = self._cv2_imread_unicode(icon.icon_path)
+            if templ_bgr is None:
+                templ_bgr = cv2.imread(templ_path)
+            if templ_bgr is None:
+                logging.warning("技能 %s：读取模板失败：%s", idx, templ_path)
+                continue
+
+            # 灰度匹配更稳一些
+            target_gray = cv2.cvtColor(target_bgr, cv2.COLOR_BGR2GRAY)
+            templ_gray = cv2.cvtColor(templ_bgr, cv2.COLOR_BGR2GRAY)
+
+            th, tw = templ_gray.shape[:2]
+            ih, iw = target_gray.shape[:2]
+
+            # matchTemplate 要求 template 不大于 image
+            if th > ih or tw > iw:
+                scale = min(iw / float(tw), ih / float(th))
+                if scale <= 0:
+                    logging.warning("技能 %s：模板图尺寸无效，跳过", idx)
+                    continue
+                new_w = max(1, int(round(tw * scale)))
+                new_h = max(1, int(round(th * scale)))
+                templ_gray = cv2.resize(templ_gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+            try:
+                result = cv2.matchTemplate(target_gray, templ_gray, cv2.TM_CCORR_NORMED)
+                _min_val, max_val, _min_loc, max_loc = cv2.minMaxLoc(result)
+            except Exception:
+                logging.exception("技能 %s：matchTemplate 失败", idx)
+                continue
+
+            score = float(max_val)
+            self._last_match_score[idx] = score
+            passed = score >= threshold
+            if passed:
+                ok_count += 1
+
+            name = icon.name
+            hk = f" key={hotkey}" if hotkey else ""
+            logging.info(
+                "技能匹配：index=%s name=%s%s score=%.4f passed=%s loc=%s",
+                idx,
+                name,
+                hk,
+                score,
+                passed,
+                max_loc,
+            )
+
+        self.statusLabel.setText(f"当前状态：匹配 {ok_count}/{total} (阈值={threshold})")

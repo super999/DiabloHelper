@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from DiabloClicker.service.capture.cap_service import CapService
 from DiabloClicker.service.img_ctrl.image_shop import ImageShop
 from DiabloClicker.ui.ui_tab_advance_image import Ui_TabAdvanceImage
+from DiabloClicker.service.sound.timed_key_sound import TimedKeySoundPlayer
 
 import cv2
 import numpy as np  # type: ignore
@@ -64,6 +65,11 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         super().__init__(parent)
         self.setupUi(self)
         self.bind_events()
+
+        # ====== 提示音（复用 timed_key 的启动/停止/重置音效） ======
+        # - 监控启动/停止：播放 start/stop
+        # - 启用热键切换某行 enabled：播放 reset（开启/关闭同一个音效）
+        self._sound_player = TimedKeySoundPlayer()
 
         # 记录最后一次全屏截图（用于裁剪多个区域）
         self._full_image: Optional[QImage] = None
@@ -906,7 +912,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         if stop_event is None or q is None:
             return
 
-        sat_target_tolerance = 5
+        sat_target_tolerance = 0.1
         keys_by_index = self._resolve_monitor_keys_1_to_6()
 
         # 日志节流：同一个 hotkey 的“监控触发”日志，2 秒内只打印一次（但按键仍会每次都发送）
@@ -1556,6 +1562,12 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             self._monitor_timer.start()
 
             self.statusLabel.setText(f"当前状态：监控已启动（{interval_seconds:.3f}s）")
+
+            # 启动成功：播放“启动音效”（与 timed_key_tab 一致）
+            try:
+                self._sound_player.play_start()
+            except Exception:
+                logging.exception("播放启动音效失败")
         else:
             logging.info("Start Monitor checkbox unchecked")
 
@@ -1580,6 +1592,12 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             self._monitor_hwnd = None
 
             self.statusLabel.setText("当前状态：监控已停止")
+
+            # 停止完成：播放“停止音效”（与 timed_key_tab 一致）
+            try:
+                self._sound_player.play_stop()
+            except Exception:
+                logging.exception("播放停止音效失败")
 
     def stop_monitor_from_external(self) -> None:
         """供外部（例如全局热键/主窗口）强制停止监控。
@@ -1624,3 +1642,9 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             self.tableWidget.setItem(row, 1, enabled_item)
 
         enabled_item.setCheckState(Qt.Unchecked if enabled_item.checkState() == Qt.Checked else Qt.Checked)
+
+        # 启用/关闭都用同一个音效（复用 timed_key 的 reset）
+        try:
+            self._sound_player.play_reset()
+        except Exception:
+            logging.exception("播放启用切换音效失败")

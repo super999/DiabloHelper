@@ -178,6 +178,7 @@
         "keys": [
             {
                 "enable_hotkey": "Alt+Num1",
+                "monitor_type": "sat_checker",
                 "hotkey": "1",
                 "enabled": false,
                 "description": "坠天星落",
@@ -186,6 +187,7 @@
             },
             {
                 "enable_hotkey": "Alt+Num2",
+                "monitor_type": "sat_checker",
                 "hotkey": "2",
                 "enabled": true,
                 "description": "正义仲裁官",
@@ -194,6 +196,7 @@
             },
             {
                 "enable_hotkey": "Alt+Num3",
+                "monitor_type": "sat_checker",
                 "hotkey": "3",
                 "enabled": true,
                 "description": "奉献",
@@ -202,6 +205,7 @@
             },
             {
                 "enable_hotkey": "Alt+Num4",
+                "monitor_type": "sat_checker",
                 "hotkey": "4",
                 "enabled": true,
                 "description": "狂信光环",
@@ -210,6 +214,7 @@
             },
             {
                 "enable_hotkey": "Alt+Num5",
+                "monitor_type": "sat_checker",
                 "hotkey": "5",
                 "enabled": true,
                 "description": "抗争光环",
@@ -218,11 +223,20 @@
             },
             {
                 "enable_hotkey": "Alt+Num6",
+                "monitor_type": "sat_checker",
                 "hotkey": "6",
                 "enabled": true,
                 "description": "庇护",
                 "scan_interval_seconds": 0.2,
                 "sat_target_value": 53.8
+            },
+            {
+                "enable_hotkey": "Alt+Num7",
+                "monitor_type": "timer_sender",
+                "hotkey": "q",
+                "enabled": true,
+                "interval": 0.3,
+                "description": "快速喝药水"
             }
         ]
     }

@@ -202,16 +202,31 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             send_hotkey = str(raw.get("hotkey") or "").strip()
             if not enable_hotkey and not send_hotkey:
                 continue
+
+            monitor_type = str(raw.get("monitor_type") or "sat_checker").strip() or "sat_checker"
+            if monitor_type not in {"sat_checker", "timer_sender"}:
+                monitor_type = "sat_checker"
+
             enabled = bool(raw.get("enabled", True))
             desc = str(raw.get("description") or "").strip()
-            interval_raw = raw.get("scan_interval_seconds", 0.2)
+
+            scan_interval_raw = raw.get("scan_interval_seconds", 0.2)
+            timer_interval_raw = raw.get("interval", 1.0)
             sat_target_raw = raw.get("sat_target_value")
             try:
-                interval = float(interval_raw)
+                scan_interval_seconds = float(scan_interval_raw)
             except Exception:
-                interval = 0.2
-            if interval <= 0:
-                interval = 0.2
+                scan_interval_seconds = 0.2
+            if scan_interval_seconds <= 0:
+                scan_interval_seconds = 0.2
+
+            timer_interval_seconds: float
+            try:
+                timer_interval_seconds = float(timer_interval_raw)
+            except Exception:
+                timer_interval_seconds = 1.0
+            if timer_interval_seconds <= 0:
+                timer_interval_seconds = 1.0
 
             sat_target_value: float | None = None
             try:
@@ -223,9 +238,11 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             out.append({
                 "enable_hotkey": enable_hotkey,
                 "hotkey": send_hotkey,
+                "monitor_type": monitor_type,
                 "enabled": enabled,
                 "description": desc,
-                "scan_interval_seconds": float(interval),
+                "scan_interval_seconds": float(scan_interval_seconds),
+                "interval": float(timer_interval_seconds),
                 "sat_target_value": sat_target_value,
             })
         return out
@@ -238,9 +255,11 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             {
                 "enable_hotkey": f"Alt+Num{i}",
                 "hotkey": str(i),
+                "monitor_type": "sat_checker",
                 "enabled": True,
                 "description": f"技能{i}",
                 "scan_interval_seconds": 0.2,
+                "interval": 1.0,
                 "sat_target_value": None,
             }
             for i in range(1, 7)
@@ -255,13 +274,25 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             configs = self._default_smart_key_configs()
 
         for cfg in configs:
+            monitor_type = str(cfg.get("monitor_type") or "sat_checker").strip() or "sat_checker"
+            if monitor_type not in {"sat_checker", "timer_sender"}:
+                monitor_type = "sat_checker"
+
+            # 表格里只有一个“扫描间隔时间”列：
+            # - sat_checker：使用 scan_interval_seconds
+            # - timer_sender：使用 interval（与 timed_key 的语义一致）
+            scan_or_interval = float(cfg.get("scan_interval_seconds", 0.2))
+            if monitor_type == "timer_sender":
+                scan_or_interval = float(cfg.get("interval", scan_or_interval))
+
             self._add_smart_key_row(
                 enable_hotkey=str(cfg.get("enable_hotkey") or ""),
                 send_hotkey=str(cfg.get("hotkey") or ""),
                 enabled=bool(cfg.get("enabled", True)),
-                scan_interval_seconds=float(cfg.get("scan_interval_seconds", 0.2)),
+                scan_interval_seconds=scan_or_interval,
                 description=str(cfg.get("description") or ""),
                 sat_target_value=cfg.get("sat_target_value"),
+                monitor_type=monitor_type,
             )
 
     def _add_smart_key_row(
@@ -272,6 +303,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         scan_interval_seconds: float,
         description: str,
         sat_target_value: float | None,
+        monitor_type: str = "sat_checker",
     ) -> None:
         row = self.tableWidget.rowCount()
         self.tableWidget.insertRow(row)
@@ -295,6 +327,12 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 send_hotkey_item.setData(Qt.UserRole, float(sat_target_value))
             except Exception:
                 send_hotkey_item.setData(Qt.UserRole, None)
+
+        # 同样不额外加列：把 monitor_type 存在 UserRole+1 里
+        mt = (monitor_type or "sat_checker").strip() or "sat_checker"
+        if mt not in {"sat_checker", "timer_sender"}:
+            mt = "sat_checker"
+        send_hotkey_item.setData(Qt.UserRole + 1, mt)
         self.tableWidget.setItem(row, 2, send_hotkey_item)
 
         # 3 扫描间隔（秒）
@@ -358,6 +396,16 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 continue
             enabled = bool(enabled_item and enabled_item.checkState() == Qt.Checked)
 
+            monitor_type = "sat_checker"
+            try:
+                if send_hotkey_item is not None:
+                    raw_mt = send_hotkey_item.data(Qt.UserRole + 1)
+                    mt = str(raw_mt or "").strip()
+                    if mt in {"sat_checker", "timer_sender"}:
+                        monitor_type = mt
+            except Exception:
+                monitor_type = "sat_checker"
+
             sat_target_value: float | None = None
             try:
                 if send_hotkey_item is not None:
@@ -379,14 +427,20 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
             desc = desc_item.text().strip() if desc_item else ""
 
-            configs.append({
+            item: dict = {
                 "enable_hotkey": enable_hotkey,
+                "monitor_type": monitor_type,
                 "hotkey": send_hotkey,
                 "enabled": bool(enabled),
                 "description": desc,
-                "scan_interval_seconds": float(interval),
-                "sat_target_value": sat_target_value,
-            })
+            }
+            if monitor_type == "timer_sender":
+                item["interval"] = float(interval)
+            else:
+                item["scan_interval_seconds"] = float(interval)
+                item["sat_target_value"] = sat_target_value
+
+            configs.append(item)
         return configs
 
     def on_save_smart_key_config_clicked(self) -> None:
@@ -831,7 +885,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
         return keys
 
-    def _get_smart_key_table_snapshot_by_index(self, *, max_count: int = 6) -> dict[int, dict[str, object]]:
+    def _get_smart_key_table_snapshot_by_index(self) -> dict[int, dict[str, object]]:
         """从 smart_key 表格读取当前勾选/热键（UI 线程调用）。
 
         约定：
@@ -845,16 +899,9 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         except Exception:
             return out
 
-        # 生成固定结构：始终返回 1..max_count 的 key，避免 worker 每帧做容错判断
-        for idx in range(1, max_count + 1):
+        # 固定结构：按行号 1..rows 返回（timer_sender 可能会超过 6 行）
+        for idx in range(1, rows + 1):
             row = idx - 1
-            if row >= rows:
-                out[idx] = {
-                    "send_hotkey": "",
-                    "enabled": False,
-                    "sat_target_value": None,
-                }
-                continue
 
             send_hotkey_item = self.tableWidget.item(row, 2)
             enabled_item = self.tableWidget.item(row, 1)
@@ -872,9 +919,32 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 except Exception:
                     sat_target_value = None
 
+            monitor_type = "sat_checker"
+            try:
+                raw_mt = send_hotkey_item.data(Qt.UserRole + 1) if send_hotkey_item is not None else None
+                mt = str(raw_mt or "").strip()
+                if mt in {"sat_checker", "timer_sender"}:
+                    monitor_type = mt
+            except Exception:
+                monitor_type = "sat_checker"
+
+            interval_widget = self.tableWidget.cellWidget(row, 3)
+            interval_text = ""
+            if isinstance(interval_widget, QComboBox):
+                interval_text = interval_widget.currentText().strip()
+            interval_seconds: float
+            try:
+                interval_seconds = float(interval_text)
+            except Exception:
+                interval_seconds = 0.0
+            if interval_seconds <= 0:
+                interval_seconds = 0.0
+
             out[idx] = {
                 "send_hotkey": send_hotkey,
                 "enabled": enabled,
+                "monitor_type": monitor_type,
+                "interval_seconds": float(interval_seconds),
                 "sat_target_value": sat_target_value,
             }
         return out
@@ -912,38 +982,125 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         if stop_event is None or q is None:
             return
 
-        sat_target_tolerance = 0.1
+        # 重要：sat_target_tolerance 由你手动调整；这里不要擅自修改。
+        sat_target_tolerance = 5
         keys_by_index = self._resolve_monitor_keys_1_to_6()
 
         # 日志节流：同一个 hotkey 的“监控触发”日志，2 秒内只打印一次（但按键仍会每次都发送）
         log_cooldown_seconds = 2.0
         last_log_ts_by_hotkey: dict[str, float] = {}
 
+        # timer_sender 调度：index -> next_due(monotonic)
+        next_due_by_index: dict[int, float] = {}
+        last_snapshot: dict[int, dict[str, object]] = {}
+        last_skill_images: dict[int, QImage] = {}
+
+        # timed_key 同款启动策略
+        timer_initial_wait_seconds = 2.0
+        timer_stagger_step_seconds = 0.02
+        timer_started_at = time.monotonic()
+        timer_initial_done = False
+
         while not stop_event.is_set():
             try:
-                item = q.get(timeout=0.2)
+                item = q.get(timeout=0.05)
             except queue.Empty:
-                continue
+                item = None
 
-            if item is None:
-                continue
+            if item is not None:
+                # item: (cuts, table_snapshot)
+                skill_images, table_snapshot = item
+                if isinstance(skill_images, dict):
+                    last_skill_images = skill_images
+                if isinstance(table_snapshot, dict):
+                    last_snapshot = table_snapshot
 
-            # item: (cuts, table_snapshot)
-            skill_images, table_snapshot = item
+                # 应用 snapshot 到 timer_sender 的调度表
+                now = time.monotonic()
+                enabled_timer_indices: list[int] = []
+                for idx, cfg in last_snapshot.items():
+                    try:
+                        idx_int = int(idx)
+                    except Exception:
+                        continue
+                    monitor_type = str(cfg.get("monitor_type") or "sat_checker").strip()
+                    enabled = bool(cfg.get("enabled"))
+                    interval_seconds = float(cfg.get("interval_seconds") or 0.0)
+                    if monitor_type == "timer_sender" and enabled and interval_seconds > 0:
+                        enabled_timer_indices.append(idx_int)
+                    else:
+                        next_due_by_index.pop(idx_int, None)
+
+                enabled_timer_indices.sort()
+                # 仅在“监控启动后的最初阶段”做一次 timed_key 同款 initial_wait + stagger
+                if (not timer_initial_done) and enabled_timer_indices:
+                    if (now - timer_started_at) >= timer_initial_wait_seconds:
+                        base = time.monotonic()
+                        for order, idx_int in enumerate(enabled_timer_indices, start=1):
+                            if idx_int not in next_due_by_index:
+                                next_due_by_index[idx_int] = base + (order * timer_stagger_step_seconds)
+                        timer_initial_done = True
+                else:
+                    # 后续：新启用的 timer_sender，按 interval 安排下一次
+                    for idx_int in enabled_timer_indices:
+                        if idx_int not in next_due_by_index:
+                            interval_seconds = float(last_snapshot[idx_int].get("interval_seconds") or 0.0)
+                            if interval_seconds > 0:
+                                next_due_by_index[idx_int] = time.monotonic() + interval_seconds
 
             hwnd = self._ensure_monitor_hwnd()
             if hwnd is None:
                 continue
 
+            # ===== timer_sender：不依赖截图，只按 interval 定时发送 =====
+            now = time.monotonic()
+            if next_due_by_index and last_snapshot:
+                for idx_int, due in list(next_due_by_index.items()):
+                    if stop_event.is_set():
+                        break
+                    cfg = last_snapshot.get(idx_int)
+                    if not isinstance(cfg, dict):
+                        continue
+                    if str(cfg.get("monitor_type") or "").strip() != "timer_sender":
+                        continue
+                    if not bool(cfg.get("enabled")):
+                        continue
+
+                    hotkey = str(cfg.get("send_hotkey") or "").strip()
+                    if not hotkey:
+                        continue
+                    interval_seconds = float(cfg.get("interval_seconds") or 0.0)
+                    if interval_seconds <= 0:
+                        continue
+
+                    if now >= float(due):
+                        try:
+                            send_key_to_hwnd(
+                                hwnd,
+                                hotkey,
+                                repeat_times=1,
+                                repeat_interval_seconds=0.0,
+                                should_stop=stop_event.is_set,
+                            )
+                        except Exception:
+                            logging.exception(f"发送按键失败：monitor_type=timer_sender index={idx_int} hotkey={hotkey}")
+                        next_due_by_index[idx_int] = time.monotonic() + interval_seconds
+
+            # ===== sat_checker：仍然走原逻辑（依赖 1..6 的技能小图） =====
             for idx in range(1, 7):
                 if stop_event.is_set():
                     break
 
-                img_qt = skill_images.get(idx)
+                img_qt = last_skill_images.get(idx)
                 if img_qt is None:
                     continue
 
-                enabled_cfg = table_snapshot[idx]
+                enabled_cfg = last_snapshot.get(idx)
+                if not isinstance(enabled_cfg, dict):
+                    continue
+
+                if str(enabled_cfg.get("monitor_type") or "sat_checker").strip() != "sat_checker":
+                    continue
 
                 # 表格“启用”未勾选：不做灰度检测，也不发键
                 if not bool(enabled_cfg["enabled"]):
@@ -1005,30 +1162,27 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         if self._monitor_stop_event.is_set():
             return
 
-        full_img = self._capture_full_screen_qimage()
-        if full_img is None or full_img.isNull():
-            return
-
-        # 更新缓存（供你调试/后续 UI 复用）
-        self._full_image = full_img
-
-        # 调试：保存监控时抓到的全屏图（覆盖更新），用于确认是否截图错位
-        if bool(self._monitor_settings.get("save_fullscreen", False)):
-            try:
-                out_dir = Path.cwd() / "screen_shoot"
-                out_dir.mkdir(parents=True, exist_ok=True)
-                out_path = out_dir / "monitor_full_latest.png"
-                full_img.save(str(out_path))
-            except Exception:
-                logging.exception("保存监控全屏截图失败")
-
-        save_debug = bool(self._monitor_settings.get("save_debug", True))
-        cuts = self._cut_skill_areas_from_image(full_img, max_count=6, save_debug=save_debug)
-        if not cuts:
-            return
-
         # UI 线程读取 table 勾选状态快照（worker 线程不可直接读 Qt 控件）
-        table_snapshot = self._get_smart_key_table_snapshot_by_index(max_count=6)
+        table_snapshot = self._get_smart_key_table_snapshot_by_index()
+
+        full_img = self._capture_full_screen_qimage()
+        cuts: dict[int, QImage] = {}
+        if full_img is not None and not full_img.isNull():
+            # 更新缓存（供你调试/后续 UI 复用）
+            self._full_image = full_img
+
+            # 调试：保存监控时抓到的全屏图（覆盖更新），用于确认是否截图错位
+            if bool(self._monitor_settings.get("save_fullscreen", False)):
+                try:
+                    out_dir = Path.cwd() / "screen_shoot"
+                    out_dir.mkdir(parents=True, exist_ok=True)
+                    out_path = out_dir / "monitor_full_latest.png"
+                    full_img.save(str(out_path))
+                except Exception:
+                    logging.exception("保存监控全屏截图失败")
+
+            save_debug = bool(self._monitor_settings.get("save_debug", True))
+            cuts = self._cut_skill_areas_from_image(full_img, max_count=6, save_debug=save_debug)
 
         with self._skill_area_lock:
             self._skill_area_images = dict(cuts)

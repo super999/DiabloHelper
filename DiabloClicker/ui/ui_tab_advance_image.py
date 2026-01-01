@@ -15,15 +15,16 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QLabel,
-    QListView, QPushButton, QSizePolicy, QSpacerItem,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QHBoxLayout, QHeaderView,
+    QLabel, QPushButton, QSizePolicy, QSpacerItem,
+    QTableWidget, QTableWidgetItem, QToolButton, QVBoxLayout,
+    QWidget)
 
 class Ui_TabAdvanceImage(object):
     def setupUi(self, TabAdvanceImage):
         if not TabAdvanceImage.objectName():
             TabAdvanceImage.setObjectName(u"TabAdvanceImage")
-        TabAdvanceImage.resize(782, 482)
+        TabAdvanceImage.resize(946, 482)
         self.verticalLayout = QVBoxLayout(TabAdvanceImage)
         self.verticalLayout.setSpacing(0)
         self.verticalLayout.setObjectName(u"verticalLayout")
@@ -38,13 +39,21 @@ class Ui_TabAdvanceImage(object):
         self.pushButton_screenshot.setGeometry(QRect(10, 5, 71, 61))
         self.pushButton_test = QPushButton(self.widget_L01)
         self.pushButton_test.setObjectName(u"pushButton_test")
-        self.pushButton_test.setGeometry(QRect(290, 5, 71, 61))
+        self.pushButton_test.setGeometry(QRect(350, 5, 71, 61))
         self.pushButton_smart_pic_cut = QPushButton(self.widget_L01)
         self.pushButton_smart_pic_cut.setObjectName(u"pushButton_smart_pic_cut")
         self.pushButton_smart_pic_cut.setGeometry(QRect(90, 5, 71, 61))
         self.pushButton_pic_match = QPushButton(self.widget_L01)
         self.pushButton_pic_match.setObjectName(u"pushButton_pic_match")
         self.pushButton_pic_match.setGeometry(QRect(170, 5, 71, 61))
+        self.btn_save_config = QToolButton(self.widget_L01)
+        self.btn_save_config.setObjectName(u"btn_save_config")
+        self.btn_save_config.setGeometry(QRect(260, 5, 71, 61))
+        self.btn_save_config.setIconSize(QSize(55, 55))
+        self.btn_save_config.setCheckable(True)
+        self.btn_save_config.setChecked(False)
+        self.btn_save_config.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.btn_save_config.setAutoRaise(False)
 
         self.verticalLayout.addWidget(self.widget_L01)
 
@@ -71,7 +80,7 @@ class Ui_TabAdvanceImage(object):
         self.horizontalLayout_3 = QHBoxLayout(self.widget)
         self.horizontalLayout_3.setSpacing(0)
         self.horizontalLayout_3.setObjectName(u"horizontalLayout_3")
-        self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
+        self.horizontalLayout_3.setContentsMargins(10, 0, 0, 0)
         self.checkBoxStartMonitor = QCheckBox(self.widget)
         self.checkBoxStartMonitor.setObjectName(u"checkBoxStartMonitor")
         self.checkBoxStartMonitor.setMinimumSize(QSize(200, 0))
@@ -117,10 +126,22 @@ class Ui_TabAdvanceImage(object):
         self.horizontalLayout_2.setSpacing(0)
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
-        self.logList = QListView(self.widget_4)
-        self.logList.setObjectName(u"logList")
+        self.tableWidget = QTableWidget(self.widget_4)
+        if (self.tableWidget.columnCount() < 5):
+            self.tableWidget.setColumnCount(5)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        __qtablewidgetitem2 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(2, __qtablewidgetitem2)
+        __qtablewidgetitem3 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(3, __qtablewidgetitem3)
+        __qtablewidgetitem4 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(4, __qtablewidgetitem4)
+        self.tableWidget.setObjectName(u"tableWidget")
 
-        self.horizontalLayout_2.addWidget(self.logList)
+        self.horizontalLayout_2.addWidget(self.tableWidget)
 
 
         self.horizontalLayout.addWidget(self.widget_4)
@@ -147,8 +168,19 @@ class Ui_TabAdvanceImage(object):
 "\u8bc6\u522b", None))
         self.pushButton_pic_match.setText(QCoreApplication.translate("TabAdvanceImage", u"\u56fe\u7247\n"
 "\u5339\u914d", None))
+        self.btn_save_config.setText(QCoreApplication.translate("TabAdvanceImage", u"\u4fdd\u5b58\u914d\u7f6e", None))
         self.checkBoxStartMonitor.setText(QCoreApplication.translate("TabAdvanceImage", u"\u542f\u52a8\u76d1\u63a7", None))
         self.statusLabel.setText(QCoreApplication.translate("TabAdvanceImage", u"\u5f53\u524d\u72b6\u6001\uff1a\u672a\u542f\u52a8", None))
         self.labelImageShow.setText(QCoreApplication.translate("TabAdvanceImage", u"TextLabel", None))
+        ___qtablewidgetitem = self.tableWidget.horizontalHeaderItem(0)
+        ___qtablewidgetitem.setText(QCoreApplication.translate("TabAdvanceImage", u"\u542f\u7528\u70ed\u952e", None));
+        ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("TabAdvanceImage", u"\u542f\u7528", None));
+        ___qtablewidgetitem2 = self.tableWidget.horizontalHeaderItem(2)
+        ___qtablewidgetitem2.setText(QCoreApplication.translate("TabAdvanceImage", u"\u626b\u63cf\u95f4\u9694\u65f6\u95f4", None));
+        ___qtablewidgetitem3 = self.tableWidget.horizontalHeaderItem(3)
+        ___qtablewidgetitem3.setText(QCoreApplication.translate("TabAdvanceImage", u"\u64cd\u4f5c", None));
+        ___qtablewidgetitem4 = self.tableWidget.horizontalHeaderItem(4)
+        ___qtablewidgetitem4.setText(QCoreApplication.translate("TabAdvanceImage", u"\u8bf4\u660e\uff08\u9009\u9879\uff09", None));
     # retranslateUi
 

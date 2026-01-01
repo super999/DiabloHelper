@@ -354,6 +354,25 @@ class TabTimedKey(QWidget, Ui_TabTimedKey):
             item = self.tableWidget.item(row, 3)
             if item:
                 item.setText("-")
+
+    def stop_from_external(self) -> None:
+        """供外部（例如全局热键/主窗口）强制停止。
+
+        约定：
+        - 不做“切换”，只做停止（避免误启动）
+        - UI 状态同步回“已停止”
+        """
+
+        if self._sender_thread and self._sender_thread.isRunning():
+            self._stop_sender_thread()
+        if self.key_status:
+            self.key_status = False
+        try:
+            self.btn_start.setChecked(False)
+            self.check_btn_status()
+        except Exception:
+            # 避免在 UI 未完整初始化时影响调用方
+            pass
         
     def on_start_clicked(self):
         """启动/停止按钮的点击回调。

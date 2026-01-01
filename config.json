@@ -22,7 +22,7 @@
             "ref_screen_width": 3840,
             "ref_screen_height": 2160
         },
-        "skill_key_config":{
+        "skill_key_config": {
             "skill_1_key": "1",
             "skill_2_key": "2",
             "skill_3_key": "3",
@@ -30,7 +30,7 @@
             "skill_5_key": "5",
             "skill_6_key": "6"
         },
-        "skill_icon":[
+        "skill_icon": [
             {
                 "index": 1,
                 "name": "坠天星落",
@@ -67,49 +67,49 @@
                 "index": 1,
                 "name": "技能1",
                 "x": 1548,
-                "y": 1957,
+                "y": 1954,
                 "width": 115,
-                "height": 107
+                "height": 115
             },
             {
                 "index": 2,
                 "name": "技能2",
                 "x": 1674,
-                "y": 1957,
+                "y": 1954,
                 "width": 115,
-                "height": 107
+                "height": 115
             },
             {
                 "index": 3,
                 "name": "技能3",
                 "x": 1800,
-                "y": 1957,
+                "y": 1954,
                 "width": 115,
-                "height": 107
+                "height": 115
             },
             {
                 "index": 4,
                 "name": "技能4",
                 "x": 1926,
-                "y": 1957,
+                "y": 1954,
                 "width": 115,
-                "height": 107
+                "height": 115
             },
             {
                 "index": 5,
                 "name": "技能5",
                 "x": 2052,
-                "y": 1957,
+                "y": 1954,
                 "width": 115,
-                "height": 107
+                "height": 115
             },
             {
                 "index": 6,
                 "name": "技能6",
                 "x": 2178,
-                "y": 1957,
+                "y": 1954,
                 "width": 115,
-                "height": 107
+                "height": 115
             }
         ]
     },
@@ -170,6 +170,46 @@
                 "enabled": true,
                 "interval": 1.0,
                 "description": "快速喝药水"
+            }
+        ]
+    },
+    "smart_key": {
+        "keys": [
+            {
+                "hotkey": "Alt+Num1",
+                "enabled": false,
+                "description": "坠天星落",
+                "scan_interval_seconds": 0.2
+            },
+            {
+                "hotkey": "Alt+Num2",
+                "enabled": true,
+                "description": "正义仲裁官",
+                "scan_interval_seconds": 0.2
+            },
+            {
+                "hotkey": "Alt+Num3",
+                "enabled": true,
+                "description": "奉献",
+                "scan_interval_seconds": 0.2
+            },
+            {
+                "hotkey": "Alt+Num4",
+                "enabled": true,
+                "description": "狂信光环",
+                "scan_interval_seconds": 0.2
+            },
+            {
+                "hotkey": "Alt+Num5",
+                "enabled": true,
+                "description": "抗争光环",
+                "scan_interval_seconds": 0.2
+            },
+            {
+                "hotkey": "Alt+Num6",
+                "enabled": true,
+                "description": "庇护",
+                "scan_interval_seconds": 0.2
             }
         ]
     }

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>782</width>
+    <width>946</width>
     <height>482</height>
    </rect>
   </property>
@@ -62,7 +62,7 @@
      <widget class="QPushButton" name="pushButton_test">
       <property name="geometry">
        <rect>
-        <x>290</x>
+        <x>350</x>
         <y>5</y>
         <width>71</width>
         <height>61</height>
@@ -98,6 +98,37 @@
       <property name="text">
        <string>图片
 匹配</string>
+      </property>
+     </widget>
+     <widget class="QToolButton" name="btn_save_config">
+      <property name="geometry">
+       <rect>
+        <x>260</x>
+        <y>5</y>
+        <width>71</width>
+        <height>61</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>保存配置</string>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>55</width>
+        <height>55</height>
+       </size>
+      </property>
+      <property name="checkable">
+       <bool>true</bool>
+      </property>
+      <property name="checked">
+       <bool>false</bool>
+      </property>
+      <property name="toolButtonStyle">
+       <enum>Qt::ToolButtonStyle::ToolButtonTextBesideIcon</enum>
+      </property>
+      <property name="autoRaise">
+       <bool>false</bool>
       </property>
      </widget>
     </widget>
@@ -153,7 +184,7 @@
           <number>0</number>
          </property>
          <property name="leftMargin">
-          <number>0</number>
+          <number>10</number>
          </property>
          <property name="topMargin">
           <number>0</number>
@@ -271,7 +302,33 @@
              <number>0</number>
             </property>
             <item>
-             <widget class="QListView" name="logList"/>
+             <widget class="QTableWidget" name="tableWidget">
+              <column>
+               <property name="text">
+                <string>启用热键</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>启用</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>扫描间隔时间</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>操作</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>说明（选项）</string>
+               </property>
+              </column>
+             </widget>
             </item>
            </layout>
           </widget>

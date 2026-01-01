@@ -113,7 +113,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self._skill_area_lock = threading.Lock()
 
         # ===== smart_key 表格（从 config.json smart_key.keys 回填） =====
-        self._smart_key_row_defaults: dict[str, float] = {}
+        self._smart_key_row_defaults: dict[int, float] = {}
         self._setup_smart_key_table_ui()
         self._load_smart_key_table_from_config_or_default()
         
@@ -134,11 +134,12 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
     def _setup_smart_key_table_ui(self) -> None:
         """初始化 smart_key 的 tableWidget 外观/列。"""
 
-        # 0 启用热键 | 1 启用 | 2 扫描间隔时间 | 3 操作 | 4 说明（可选）
-        self.tableWidget.setColumnCount(5)
+        # 0 启用热键 | 1 启用 | 2 发送热键 | 3 扫描间隔时间 | 4 操作 | 5 说明（可选）
+        self.tableWidget.setColumnCount(6)
         self.tableWidget.setHorizontalHeaderLabels([
             "启用热键",
             "启用",
+            "发送热键",
             "扫描间隔时间",
             "操作",
             "说明（选项）",
@@ -147,14 +148,16 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self.tableWidget.setColumnWidth(0, 150)
         self.tableWidget.setColumnWidth(1, 80)
         self.tableWidget.setColumnWidth(2, 120)
-        self.tableWidget.setColumnWidth(3, 100)
-        self.tableWidget.setColumnWidth(4, 220)
+        self.tableWidget.setColumnWidth(3, 120)
+        self.tableWidget.setColumnWidth(4, 100)
+        self.tableWidget.setColumnWidth(5, 220)
         self.tableWidget.horizontalHeader().setStretchLastSection(True)
         self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.tableWidget.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.tableWidget.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.tableWidget.horizontalHeader().setSectionResizeMode(3, QHeaderView.Fixed)
         self.tableWidget.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.tableWidget.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
 
     def _read_config_json(self) -> dict:
         config_path = Path.cwd() / "config.json"
@@ -188,8 +191,9 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         for raw in items:
             if not isinstance(raw, dict):
                 continue
-            hotkey = str(raw.get("hotkey") or "").strip()
-            if not hotkey:
+            enable_hotkey = str(raw.get("enable_hotkey") or "").strip()
+            send_hotkey = str(raw.get("hotkey") or "").strip()
+            if not enable_hotkey and not send_hotkey:
                 continue
             enabled = bool(raw.get("enabled", True))
             desc = str(raw.get("description") or "").strip()
@@ -201,7 +205,8 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             if interval <= 0:
                 interval = 0.2
             out.append({
-                "hotkey": hotkey,
+                "enable_hotkey": enable_hotkey,
+                "hotkey": send_hotkey,
                 "enabled": enabled,
                 "description": desc,
                 "scan_interval_seconds": float(interval),
@@ -209,9 +214,17 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         return out
 
     def _default_smart_key_configs(self) -> list[dict]:
-        # 没配 smart_key 时给一个最小默认：6 个 Alt+Num
+        # 没配 smart_key 时给一个最小默认：6 行
+        # - enable_hotkey: Alt+Num{i}（切换该行启用）
+        # - hotkey: {i}（真正发送给游戏窗口的热键）
         return [
-            {"hotkey": f"Alt+Num{i}", "enabled": True, "description": f"技能{i}", "scan_interval_seconds": 0.2}
+            {
+                "enable_hotkey": f"Alt+Num{i}",
+                "hotkey": str(i),
+                "enabled": True,
+                "description": f"技能{i}",
+                "scan_interval_seconds": 0.2,
+            }
             for i in range(1, 7)
         ]
 
@@ -225,80 +238,95 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
         for cfg in configs:
             self._add_smart_key_row(
-                hotkey=cfg["hotkey"],
+                enable_hotkey=str(cfg.get("enable_hotkey") or ""),
+                send_hotkey=str(cfg.get("hotkey") or ""),
                 enabled=bool(cfg.get("enabled", True)),
                 scan_interval_seconds=float(cfg.get("scan_interval_seconds", 0.2)),
                 description=str(cfg.get("description") or ""),
             )
 
-    def _add_smart_key_row(self, hotkey: str, enabled: bool, scan_interval_seconds: float, description: str) -> None:
+    def _add_smart_key_row(
+        self,
+        enable_hotkey: str,
+        send_hotkey: str,
+        enabled: bool,
+        scan_interval_seconds: float,
+        description: str,
+    ) -> None:
         row = self.tableWidget.rowCount()
         self.tableWidget.insertRow(row)
 
-        # 0 热键
-        hotkey_item = QTableWidgetItem(hotkey)
-        self.tableWidget.setItem(row, 0, hotkey_item)
+        # 0 启用热键
+        enable_hotkey_item = QTableWidgetItem(enable_hotkey)
+        self.tableWidget.setItem(row, 0, enable_hotkey_item)
 
         # 1 启用
         enabled_item = QTableWidgetItem("启用")
         enabled_item.setCheckState(Qt.Checked if enabled else Qt.Unchecked)
         self.tableWidget.setItem(row, 1, enabled_item)
 
-        # 2 扫描间隔（秒）
+        # 2 发送热键
+        send_hotkey_item = QTableWidgetItem(send_hotkey)
+        self.tableWidget.setItem(row, 2, send_hotkey_item)
+
+        # 3 扫描间隔（秒）
         interval_combo = QComboBox(self.tableWidget)
         interval_combo.setEditable(True)
         # 常用值；也允许手动输入
         interval_combo.addItems(["0.05", "0.1", "0.15", "0.2", "0.25", "0.3", "0.5", "1.0"])
         interval_combo.setCurrentText(str(scan_interval_seconds))
-        self.tableWidget.setCellWidget(row, 2, interval_combo)
+        self.tableWidget.setCellWidget(row, 3, interval_combo)
 
-        # 3 操作（重置：把扫描间隔恢复到初始值）
+        # 4 操作（重置：把扫描间隔恢复到初始值）
         op_widget = QWidget(self.tableWidget)
         op_layout = QHBoxLayout(op_widget)
         op_layout.setContentsMargins(0, 0, 0, 0)
         op_layout.setSpacing(8)
         btn_reset = QPushButton("重置", op_widget)
-        btn_reset.setProperty("hotkey", hotkey)
+        btn_reset.setProperty("row", int(row))
         btn_reset.setProperty("default_interval", float(scan_interval_seconds))
         btn_reset.clicked.connect(self._on_smart_key_reset_clicked)
         op_layout.addWidget(btn_reset)
         op_layout.addStretch(1)
-        self.tableWidget.setCellWidget(row, 3, op_widget)
+        self.tableWidget.setCellWidget(row, 4, op_widget)
 
-        # 4 描述
+        # 5 描述
         desc_item = QTableWidgetItem(description)
-        self.tableWidget.setItem(row, 4, desc_item)
+        self.tableWidget.setItem(row, 5, desc_item)
 
-        self._smart_key_row_defaults[hotkey] = float(scan_interval_seconds)
+        self._smart_key_row_defaults[row] = float(scan_interval_seconds)
 
     def _on_smart_key_reset_clicked(self) -> None:
         btn = self.sender()
         if btn is None:
             return
-        hotkey = str(btn.property("hotkey") or "").strip()
+        try:
+            row = int(btn.property("row"))
+        except Exception:
+            row = -1
         try:
             default_interval = float(btn.property("default_interval"))
         except Exception:
-            default_interval = float(self._smart_key_row_defaults.get(hotkey, 0.2))
+            default_interval = float(self._smart_key_row_defaults.get(row, 0.2))
 
-        for row in range(self.tableWidget.rowCount()):
-            item = self.tableWidget.item(row, 0)
-            if item and item.text().strip() == hotkey:
-                w = self.tableWidget.cellWidget(row, 2)
-                if isinstance(w, QComboBox):
-                    w.setCurrentText(str(default_interval))
-                break
+        if row < 0 or row >= self.tableWidget.rowCount():
+            return
+        w = self.tableWidget.cellWidget(row, 3)
+        if isinstance(w, QComboBox):
+            w.setCurrentText(str(default_interval))
 
     def _collect_smart_key_configs_from_table(self) -> list[dict]:
         configs: list[dict] = []
         for row in range(self.tableWidget.rowCount()):
-            hotkey_item = self.tableWidget.item(row, 0)
+            enable_hotkey_item = self.tableWidget.item(row, 0)
             enabled_item = self.tableWidget.item(row, 1)
-            interval_widget = self.tableWidget.cellWidget(row, 2)
-            desc_item = self.tableWidget.item(row, 4)
+            send_hotkey_item = self.tableWidget.item(row, 2)
+            interval_widget = self.tableWidget.cellWidget(row, 3)
+            desc_item = self.tableWidget.item(row, 5)
 
-            hotkey = hotkey_item.text().strip() if hotkey_item else ""
-            if not hotkey:
+            enable_hotkey = enable_hotkey_item.text().strip() if enable_hotkey_item else ""
+            send_hotkey = send_hotkey_item.text().strip() if send_hotkey_item else ""
+            if not enable_hotkey and not send_hotkey:
                 continue
             enabled = bool(enabled_item and enabled_item.checkState() == Qt.Checked)
 
@@ -315,7 +343,8 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             desc = desc_item.text().strip() if desc_item else ""
 
             configs.append({
-                "hotkey": hotkey,
+                "enable_hotkey": enable_hotkey,
+                "hotkey": send_hotkey,
                 "enabled": bool(enabled),
                 "description": desc,
                 "scan_interval_seconds": float(interval),
@@ -772,11 +801,11 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
         for row in range(min(rows, max_count)):
             idx = row + 1
-            hotkey_item = self.tableWidget.item(row, 0)
+            send_hotkey_item = self.tableWidget.item(row, 2)
             enabled_item = self.tableWidget.item(row, 1)
-            hotkey = hotkey_item.text().strip() if hotkey_item else ""
+            send_hotkey = send_hotkey_item.text().strip() if send_hotkey_item else ""
             enabled = bool(enabled_item and enabled_item.checkState() == Qt.Checked)
-            out[idx] = {"hotkey": hotkey, "enabled": enabled}
+            out[idx] = {"send_hotkey": send_hotkey, "enabled": enabled}
         return out
 
     def _ensure_monitor_hwnd(self) -> Optional[int]:
@@ -852,7 +881,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 # 优先用表格的热键，其次 fallback 到原逻辑解析到的 1-6
                 hotkey = ""
                 if isinstance(enabled_cfg, dict):
-                    hotkey = str(enabled_cfg.get("hotkey") or "").strip()
+                    hotkey = str(enabled_cfg.get("send_hotkey") or "").strip()
                 if not hotkey:
                     hotkey = (keys_by_index.get(idx) or "").strip()
                 if not hotkey:
@@ -1537,3 +1566,25 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             self.checkBoxStartMonitor.toggle()
         except Exception:
             pass
+
+    def toggle_row_enabled_by_index(self, index: int) -> None:
+        """切换表格中某一行（按技能序号 1..N）的“启用”勾选状态。"""
+
+        try:
+            idx = int(index)
+        except Exception:
+            return
+        if idx <= 0:
+            return
+
+        row = idx - 1
+        if row < 0 or row >= self.tableWidget.rowCount():
+            return
+
+        enabled_item = self.tableWidget.item(row, 1)
+        if enabled_item is None:
+            enabled_item = QTableWidgetItem("启用")
+            enabled_item.setCheckState(Qt.Unchecked)
+            self.tableWidget.setItem(row, 1, enabled_item)
+
+        enabled_item.setCheckState(Qt.Unchecked if enabled_item.checkState() == Qt.Checked else Qt.Checked)

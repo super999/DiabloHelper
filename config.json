@@ -176,40 +176,52 @@
     "smart_key": {
         "keys": [
             {
-                "hotkey": "Alt+Num1",
+                "enable_hotkey": "Alt+Num1",
+                "hotkey": "1",
                 "enabled": false,
                 "description": "坠天星落",
-                "scan_interval_seconds": 0.2
+                "scan_interval_seconds": 0.2,
+                "sat_target_value": 122.4
             },
             {
-                "hotkey": "Alt+Num2",
+                "enable_hotkey": "Alt+Num2",
+                "hotkey": "2",
                 "enabled": true,
                 "description": "正义仲裁官",
-                "scan_interval_seconds": 0.2
+                "scan_interval_seconds": 0.2,
+                "sat_target_value": 97.5
             },
             {
-                "hotkey": "Alt+Num3",
+                "enable_hotkey": "Alt+Num3",
+                "hotkey": "3",
                 "enabled": true,
                 "description": "奉献",
-                "scan_interval_seconds": 0.2
+                "scan_interval_seconds": 0.2,
+                "sat_target_value": 126.9
             },
             {
-                "hotkey": "Alt+Num4",
+                "enable_hotkey": "Alt+Num4",
+                "hotkey": "4",
                 "enabled": true,
                 "description": "狂信光环",
-                "scan_interval_seconds": 0.2
+                "scan_interval_seconds": 0.2,
+                "sat_target_value": 121.1
             },
             {
-                "hotkey": "Alt+Num5",
+                "enable_hotkey": "Alt+Num5",
+                "hotkey": "5",
                 "enabled": true,
                 "description": "抗争光环",
-                "scan_interval_seconds": 0.2
+                "scan_interval_seconds": 0.2,
+                "sat_target_value": 75.3
             },
             {
-                "hotkey": "Alt+Num6",
+                "enable_hotkey": "Alt+Num6",
+                "hotkey": "6",
                 "enabled": true,
                 "description": "庇护",
-                "scan_interval_seconds": 0.2
+                "scan_interval_seconds": 0.2,
+                "sat_target_value": 53.8
             }
         ]
     }

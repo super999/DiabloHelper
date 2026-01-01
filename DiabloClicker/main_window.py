@@ -8,6 +8,7 @@ from DiabloClicker.service.hotkey.win_global_hotkey import (
     HotkeySpec,
     load_timed_key_toggle_hotkey,
     load_timed_key_reset_hotkeys,
+    load_smart_key_enable_hotkeys,
     register_hotkey,
     unregister_hotkey,
 )
@@ -148,6 +149,18 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
             tab.trigger_reset_by_hotkey(skill_hotkey)
         except Exception:
             logging.exception("处理全局热键失败：重置技能 %s", skill_hotkey)
+
+    def _toggle_smart_key_row_enabled_from_hotkey(self, index: int) -> None:
+        """全局热键触发：切换 SmartKey 表格某行的启用勾选状态。"""
+
+        try:
+            tab = self._get_open_smart_key_tab()
+            if tab is None:
+                logging.info("启用热键触发但 SmartKey tab 未打开，忽略：index=%s", index)
+                return
+            tab.toggle_row_enabled_by_index(index)
+        except Exception:
+            logging.exception("处理全局热键失败：切换智能按键启用 index=%s", index)
     
     def open_smart_key_tab(self):
         tab_name = "Smart Key"
@@ -230,6 +243,28 @@ class DiabloClickerMainWindow(QMainWindow, Ui_MainWindow):
             logging.info(
                 "已注册技能重置热键：skill=%s hotkey=%s",
                 skill_hotkey,
+                spec.display,
+            )
+
+        # 3) 智能按键“启用热键”：从 smart_key.keys[*].enable_hotkey 读取
+        enable_specs = load_smart_key_enable_hotkeys()
+        base_id2 = 0xA200
+        for idx, (row_index, spec) in enumerate(enable_specs):
+            hotkey_id = base_id2 + idx
+            ok3 = register_hotkey(hwnd, hotkey_id, spec)
+            if not ok3:
+                logging.warning(
+                    "智能按键启用热键注册失败：index=%s hotkey=%s",
+                    row_index,
+                    spec.display,
+                )
+                continue
+
+            self._registered_hotkey_ids.add(hotkey_id)
+            self._hotkey_handlers[hotkey_id] = (lambda i=row_index: self._toggle_smart_key_row_enabled_from_hotkey(i))
+            logging.info(
+                "已注册智能按键启用热键：index=%s hotkey=%s",
+                row_index,
                 spec.display,
             )
 

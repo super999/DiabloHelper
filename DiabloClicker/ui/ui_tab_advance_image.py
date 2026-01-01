@@ -108,12 +108,14 @@ class Ui_TabAdvanceImage(object):
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
         self.widget_3 = QWidget(self.widget_2)
         self.widget_3.setObjectName(u"widget_3")
+        self.widget_3.setMaximumSize(QSize(400, 16777215))
         self.verticalLayout_3 = QVBoxLayout(self.widget_3)
         self.verticalLayout_3.setSpacing(0)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
         self.labelImageShow = QLabel(self.widget_3)
         self.labelImageShow.setObjectName(u"labelImageShow")
+        self.labelImageShow.setMaximumSize(QSize(400, 16777215))
 
         self.verticalLayout_3.addWidget(self.labelImageShow)
 
@@ -127,8 +129,8 @@ class Ui_TabAdvanceImage(object):
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
         self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
         self.tableWidget = QTableWidget(self.widget_4)
-        if (self.tableWidget.columnCount() < 5):
-            self.tableWidget.setColumnCount(5)
+        if (self.tableWidget.columnCount() < 6):
+            self.tableWidget.setColumnCount(6)
         __qtablewidgetitem = QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(0, __qtablewidgetitem)
         __qtablewidgetitem1 = QTableWidgetItem()
@@ -139,6 +141,8 @@ class Ui_TabAdvanceImage(object):
         self.tableWidget.setHorizontalHeaderItem(3, __qtablewidgetitem3)
         __qtablewidgetitem4 = QTableWidgetItem()
         self.tableWidget.setHorizontalHeaderItem(4, __qtablewidgetitem4)
+        __qtablewidgetitem5 = QTableWidgetItem()
+        self.tableWidget.setHorizontalHeaderItem(5, __qtablewidgetitem5)
         self.tableWidget.setObjectName(u"tableWidget")
 
         self.horizontalLayout_2.addWidget(self.tableWidget)
@@ -177,10 +181,12 @@ class Ui_TabAdvanceImage(object):
         ___qtablewidgetitem1 = self.tableWidget.horizontalHeaderItem(1)
         ___qtablewidgetitem1.setText(QCoreApplication.translate("TabAdvanceImage", u"\u542f\u7528", None));
         ___qtablewidgetitem2 = self.tableWidget.horizontalHeaderItem(2)
-        ___qtablewidgetitem2.setText(QCoreApplication.translate("TabAdvanceImage", u"\u626b\u63cf\u95f4\u9694\u65f6\u95f4", None));
+        ___qtablewidgetitem2.setText(QCoreApplication.translate("TabAdvanceImage", u"\u53d1\u9001\u70ed\u952e", None));
         ___qtablewidgetitem3 = self.tableWidget.horizontalHeaderItem(3)
-        ___qtablewidgetitem3.setText(QCoreApplication.translate("TabAdvanceImage", u"\u64cd\u4f5c", None));
+        ___qtablewidgetitem3.setText(QCoreApplication.translate("TabAdvanceImage", u"\u626b\u63cf\u95f4\u9694\u65f6\u95f4", None));
         ___qtablewidgetitem4 = self.tableWidget.horizontalHeaderItem(4)
-        ___qtablewidgetitem4.setText(QCoreApplication.translate("TabAdvanceImage", u"\u8bf4\u660e\uff08\u9009\u9879\uff09", None));
+        ___qtablewidgetitem4.setText(QCoreApplication.translate("TabAdvanceImage", u"\u64cd\u4f5c", None));
+        ___qtablewidgetitem5 = self.tableWidget.horizontalHeaderItem(5)
+        ___qtablewidgetitem5.setText(QCoreApplication.translate("TabAdvanceImage", u"\u8bf4\u660e\uff08\u9009\u9879\uff09", None));
     # retranslateUi
 

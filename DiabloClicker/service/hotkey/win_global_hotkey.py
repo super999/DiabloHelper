@@ -223,6 +223,63 @@ def load_timed_key_reset_hotkeys() -> list[tuple[str, HotkeySpec]]:
     return result
 
 
+def load_smart_key_enable_hotkeys() -> list[tuple[int, HotkeySpec]]:
+    """从 cwd/config.json 读取智能按键每行的“启用热键”（enable_hotkey）。
+
+    期望结构：
+    {
+      "smart_key": {
+        "keys": [
+          {"enable_hotkey": "Alt+Num1", ...},
+          ...
+        ]
+      }
+    }
+
+    返回：
+    - [(index, HotkeySpec), ...] 其中 index 从 1 开始，对应表格第 index 行
+    - 解析失败/缺失则返回 []
+    """
+
+    config_path = Path.cwd() / "config.json"
+    if not config_path.exists():
+        return []
+
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        logging.exception("读取 config.json 失败：无法加载 smart_key.keys[*].enable_hotkey")
+        return []
+
+    smart_key = data.get("smart_key")
+    if not isinstance(smart_key, dict):
+        return []
+    items = smart_key.get("keys")
+    if not isinstance(items, list):
+        return []
+
+    result: list[tuple[int, HotkeySpec]] = []
+    for idx, raw in enumerate(items, start=1):
+        if not isinstance(raw, dict):
+            continue
+        enable_hotkey = raw.get("enable_hotkey")
+        if not isinstance(enable_hotkey, str) or not enable_hotkey.strip():
+            continue
+
+        spec = parse_hotkey_spec(enable_hotkey.strip())
+        if spec is None:
+            logging.warning(
+                "启用热键解析失败：index=%s enable_hotkey=%s",
+                idx,
+                enable_hotkey,
+            )
+            continue
+
+        result.append((idx, spec))
+
+    return result
+
+
 def register_hotkey(hwnd: int, hotkey_id: int, spec: HotkeySpec) -> bool:
     """注册全局热键。
 

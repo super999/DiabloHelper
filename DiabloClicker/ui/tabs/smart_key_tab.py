@@ -29,6 +29,7 @@ import cv2
 import numpy as np  # type: ignore
 from DiabloClicker.service.key_sender.timed_key_sender import send_key_to_hwnd
 
+
 @dataclass(frozen=True)
 class _SmallPicRegion:
     x: int
@@ -116,12 +117,12 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self._smart_key_row_defaults: dict[int, float] = {}
         self._setup_smart_key_table_ui()
         self._load_smart_key_table_from_config_or_default()
-        
+
     def showEvent(self, event) -> None:
         super().showEvent(event)
         # 在 tab 页显示时执行的代码
         logging.info("Smart Key tab is shown")
-        
+
     def bind_events(self) -> None:
         # 绑定 UI 事件处理函数
         self.pushButton_screenshot.clicked.connect(self.on_screenshot_clicked)
@@ -198,18 +199,28 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             enabled = bool(raw.get("enabled", True))
             desc = str(raw.get("description") or "").strip()
             interval_raw = raw.get("scan_interval_seconds", 0.2)
+            sat_target_raw = raw.get("sat_target_value")
             try:
                 interval = float(interval_raw)
             except Exception:
                 interval = 0.2
             if interval <= 0:
                 interval = 0.2
+
+            sat_target_value: float | None = None
+            try:
+                if sat_target_raw is not None and str(sat_target_raw).strip() != "":
+                    sat_target_value = float(sat_target_raw)
+            except Exception:
+                sat_target_value = None
+
             out.append({
                 "enable_hotkey": enable_hotkey,
                 "hotkey": send_hotkey,
                 "enabled": enabled,
                 "description": desc,
                 "scan_interval_seconds": float(interval),
+                "sat_target_value": sat_target_value,
             })
         return out
 
@@ -224,6 +235,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 "enabled": True,
                 "description": f"技能{i}",
                 "scan_interval_seconds": 0.2,
+                "sat_target_value": None,
             }
             for i in range(1, 7)
         ]
@@ -243,6 +255,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 enabled=bool(cfg.get("enabled", True)),
                 scan_interval_seconds=float(cfg.get("scan_interval_seconds", 0.2)),
                 description=str(cfg.get("description") or ""),
+                sat_target_value=cfg.get("sat_target_value"),
             )
 
     def _add_smart_key_row(
@@ -252,6 +265,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         enabled: bool,
         scan_interval_seconds: float,
         description: str,
+        sat_target_value: float | None,
     ) -> None:
         row = self.tableWidget.rowCount()
         self.tableWidget.insertRow(row)
@@ -267,6 +281,14 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
         # 2 发送热键
         send_hotkey_item = QTableWidgetItem(send_hotkey)
+        # 不额外加列：把 sat_target_value 存在发送热键这一格的 UserRole 里，保存/监控都会带上
+        if sat_target_value is None:
+            send_hotkey_item.setData(Qt.UserRole, None)
+        else:
+            try:
+                send_hotkey_item.setData(Qt.UserRole, float(sat_target_value))
+            except Exception:
+                send_hotkey_item.setData(Qt.UserRole, None)
         self.tableWidget.setItem(row, 2, send_hotkey_item)
 
         # 3 扫描间隔（秒）
@@ -330,6 +352,15 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 continue
             enabled = bool(enabled_item and enabled_item.checkState() == Qt.Checked)
 
+            sat_target_value: float | None = None
+            try:
+                if send_hotkey_item is not None:
+                    raw_target = send_hotkey_item.data(Qt.UserRole)
+                    if raw_target is not None and str(raw_target).strip() != "":
+                        sat_target_value = float(raw_target)
+            except Exception:
+                sat_target_value = None
+
             interval_text = ""
             if isinstance(interval_widget, QComboBox):
                 interval_text = interval_widget.currentText().strip()
@@ -348,6 +379,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 "enabled": bool(enabled),
                 "description": desc,
                 "scan_interval_seconds": float(interval),
+                "sat_target_value": sat_target_value,
             })
         return configs
 
@@ -360,7 +392,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         if isinstance(root, dict):
             root["keys"] = configs
         self._write_config_json(data)
-        logging.info("已保存 smart_key 配置到 config.json，共 %s 条", len(configs))
+        logging.info(f"已保存 smart_key 配置到 config.json，共 {len(configs)} 条")
         # QToolButton 是 checkable 的，保存完把它按回去（避免 UI 一直处于按下状态）
         try:
             self.btn_save_config.setChecked(False)
@@ -642,6 +674,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         目前支持：
         - screenshot.smart_key_monitor_interval: float，监控间隔（秒），默认 0.1
         - screenshot.smart_key_monitor_save_debug: bool，是否写入技能小图到 screen_shoot/skill_{i}.png，默认 True
+        - screenshot.smart_key_monitor_save_fullscreen: bool，是否写入“监控抓到的全屏截图”到 screen_shoot/monitor_full_latest.png，默认 False
 
         注意：这些字段缺失不影响运行（走默认）。
         """
@@ -649,6 +682,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         defaults: dict[str, object] = {
             "interval_seconds": 0.1,
             "save_debug": True,
+            "save_fullscreen": False,
         }
 
         config_path = Path.cwd() / "config.json"
@@ -667,6 +701,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
         interval_raw = screenshot.get("smart_key_monitor_interval")
         save_debug_raw = screenshot.get("smart_key_monitor_save_debug")
+        save_fullscreen_raw = screenshot.get("smart_key_monitor_save_fullscreen")
 
         interval = defaults["interval_seconds"]
         try:
@@ -682,9 +717,14 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         if isinstance(save_debug_raw, bool):
             save_debug = save_debug_raw
 
+        save_fullscreen = defaults["save_fullscreen"]
+        if isinstance(save_fullscreen_raw, bool):
+            save_fullscreen = save_fullscreen_raw
+
         return {
             "interval_seconds": float(interval),
             "save_debug": bool(save_debug),
+            "save_fullscreen": bool(save_fullscreen),
         }
 
     def _capture_full_screen_qimage(self) -> Optional[QImage]:
@@ -799,13 +839,38 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         except Exception:
             return out
 
-        for row in range(min(rows, max_count)):
-            idx = row + 1
+        # 生成固定结构：始终返回 1..max_count 的 key，避免 worker 每帧做容错判断
+        for idx in range(1, max_count + 1):
+            row = idx - 1
+            if row >= rows:
+                out[idx] = {
+                    "send_hotkey": "",
+                    "enabled": False,
+                    "sat_target_value": None,
+                }
+                continue
+
             send_hotkey_item = self.tableWidget.item(row, 2)
             enabled_item = self.tableWidget.item(row, 1)
+
             send_hotkey = send_hotkey_item.text().strip() if send_hotkey_item else ""
             enabled = bool(enabled_item and enabled_item.checkState() == Qt.Checked)
-            out[idx] = {"send_hotkey": send_hotkey, "enabled": enabled}
+
+            sat_target_value: float | None
+            raw_target = send_hotkey_item.data(Qt.UserRole) if send_hotkey_item is not None else None
+            if raw_target is None or str(raw_target).strip() == "":
+                sat_target_value = None
+            else:
+                try:
+                    sat_target_value = float(raw_target)
+                except Exception:
+                    sat_target_value = None
+
+            out[idx] = {
+                "send_hotkey": send_hotkey,
+                "enabled": enabled,
+                "sat_target_value": sat_target_value,
+            }
         return out
 
     def _ensure_monitor_hwnd(self) -> Optional[int]:
@@ -828,22 +893,25 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self._monitor_hwnd = hwnd
         self._monitor_hwnd_title = title
         if hwnd is None:
-            logging.warning("未找到目标窗口句柄：title=%s", title)
+            logging.warning(f"未找到目标窗口句柄：title={title}")
         else:
-            logging.info("监控目标窗口句柄：hwnd=%s title=%s", hwnd, title)
+            logging.info(f"监控目标窗口句柄：hwnd={hwnd} title={title}")
         return hwnd
 
     def _monitor_worker_main(self) -> None:
         """后台 worker：从队列拿到技能小图，做 SAT 判断并发键。"""
-
 
         stop_event = self._monitor_stop_event
         q = self._monitor_queue
         if stop_event is None or q is None:
             return
 
-        sat_disable_threshold = 50.0
+        sat_target_tolerance = 5
         keys_by_index = self._resolve_monitor_keys_1_to_6()
+
+        # 日志节流：同一个 hotkey 的“监控触发”日志，2 秒内只打印一次（但按键仍会每次都发送）
+        log_cooldown_seconds = 2.0
+        last_log_ts_by_hotkey: dict[str, float] = {}
 
         while not stop_event.is_set():
             try:
@@ -855,39 +923,33 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 continue
 
             # item: (cuts, table_snapshot)
-            try:
-                skill_images, table_snapshot = item
-            except Exception:
-                continue
+            skill_images, table_snapshot = item
 
             hwnd = self._ensure_monitor_hwnd()
             if hwnd is None:
                 continue
 
-            for idx in sorted(skill_images.keys()):
+            for idx in range(1, 7):
                 if stop_event.is_set():
                     break
 
+                img_qt = skill_images.get(idx)
+                if img_qt is None:
+                    continue
+
+                enabled_cfg = table_snapshot[idx]
+
                 # 表格“启用”未勾选：不做灰度检测，也不发键
-                enabled_cfg = None
-                try:
-                    enabled_cfg = table_snapshot.get(idx) if isinstance(table_snapshot, dict) else None
-                except Exception:
-                    enabled_cfg = None
-                if isinstance(enabled_cfg, dict):
-                    if not bool(enabled_cfg.get("enabled", True)):
-                        continue
+                if not bool(enabled_cfg["enabled"]):
+                    continue
 
                 # 优先用表格的热键，其次 fallback 到原逻辑解析到的 1-6
-                hotkey = ""
-                if isinstance(enabled_cfg, dict):
-                    hotkey = str(enabled_cfg.get("send_hotkey") or "").strip()
+                hotkey = str(enabled_cfg["send_hotkey"] or "").strip()
                 if not hotkey:
                     hotkey = (keys_by_index.get(idx) or "").strip()
                 if not hotkey:
                     continue
 
-                img_qt = skill_images[idx]
                 try:
                     bgr = self._qimage_to_cv_bgr(img_qt)
                 except Exception:
@@ -900,17 +962,21 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 except Exception:
                     mean_sat = None
 
-                enabled_now = bool(mean_sat is not None and mean_sat >= sat_disable_threshold)
+                sat_target_value = enabled_cfg.get("sat_target_value")
+                enabled_now = bool(
+                    mean_sat is not None
+                    and sat_target_value is not None
+                    and abs(mean_sat - float(sat_target_value)) < sat_target_tolerance
+                )
 
                 # 你的需求：只要当前帧判定为“可用（非灰色）”，就发送按键
                 if enabled_now:
-                    logging.info(
-                        "监控触发：skill=%s hotkey=%s sat=%s hwnd=%s",
-                        idx,
-                        hotkey,
-                        f"{mean_sat:.1f}" if mean_sat is not None else "None",
-                        hwnd,
-                    )
+                    now_ts = time.monotonic()
+                    last_ts = last_log_ts_by_hotkey.get(hotkey)
+                    if last_ts is None or (now_ts - last_ts) >= log_cooldown_seconds:
+                        last_log_ts_by_hotkey[hotkey] = now_ts
+                        sat_str = f"{mean_sat:.1f}" if mean_sat is not None else "None"
+                        logging.info(f"监控触发：skill={idx} hotkey={hotkey} sat={sat_str} hwnd={hwnd}")
                     try:
                         send_key_to_hwnd(
                             hwnd,
@@ -920,8 +986,10 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                             should_stop=stop_event.is_set,
                         )
                     except Exception:
-                        logging.exception("发送按键失败：skill=%s hotkey=%s", idx, hotkey)
-                
+                        logging.exception(f"发送按键失败：skill={idx} hotkey={hotkey}")
+                else:
+                    # logging.info(f'监控未触发：skill={idx} hotkey={hotkey} sat={mean_sat:.1f} hwnd={hwnd}')
+                    pass
 
     def _on_monitor_timer_tick(self) -> None:
         """UI 线程：抓屏并裁剪，把 1-6 技能小图投递到 worker。"""
@@ -937,6 +1005,16 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
         # 更新缓存（供你调试/后续 UI 复用）
         self._full_image = full_img
+
+        # 调试：保存监控时抓到的全屏图（覆盖更新），用于确认是否截图错位
+        if bool(self._monitor_settings.get("save_fullscreen", False)):
+            try:
+                out_dir = Path.cwd() / "screen_shoot"
+                out_dir.mkdir(parents=True, exist_ok=True)
+                out_path = out_dir / "monitor_full_latest.png"
+                full_img.save(str(out_path))
+            except Exception:
+                logging.exception("保存监控全屏截图失败")
 
         save_debug = bool(self._monitor_settings.get("save_debug", True))
         cuts = self._cut_skill_areas_from_image(full_img, max_count=6, save_debug=save_debug)
@@ -1029,7 +1107,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         super().resizeEvent(event)
         # 窗口/控件大小变化时，重新等比缩放，让宽/高尽量贴边
         self._update_image_view()
-        
+
     def on_screenshot_clicked(self) -> None:
         logging.info("Screenshot button clicked")
         service = CapService()
@@ -1045,7 +1123,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self._full_image = img
         self._last_image = img
         self._update_image_view()
-        
+
     def on_smart_pic_cut_clicked(self) -> None:
         logging.info("Smart Pic Cut button clicked")
         # 根据当前截图，裁剪出智能按键区域 + 技能区域并保存
@@ -1075,13 +1153,8 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             w = int(round(w * scale_x))
             h = int(round(h * scale_y))
             logging.info(
-                "裁剪区域已按参考分辨率缩放：ref=%sx%s img=%sx%s scale=%.4f/%.4f",
-                region.ref_screen_width,
-                region.ref_screen_height,
-                img_w,
-                img_h,
-                scale_x,
-                scale_y,
+                f"裁剪区域已按参考分辨率缩放：ref={region.ref_screen_width}x{region.ref_screen_height} "
+                f"img={img_w}x{img_h} scale={scale_x:.4f}/{scale_y:.4f}"
             )
 
         # ===== 边界保护 =====
@@ -1169,35 +1242,22 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             h2 = max(0, y2 - y)
             if w2 <= 0 or h2 <= 0:
                 logging.warning(
-                    "技能区域越界或无效：index=%s name=%s region=(%s,%s,%s,%s) image=(%sx%s)",
-                    area.index,
-                    area.name,
-                    x,
-                    y,
-                    w,
-                    h,
-                    img_w,
-                    img_h,
+                    f"技能区域越界或无效：index={area.index} name={area.name} "
+                    f"region=({x},{y},{w},{h}) image=({img_w}x{img_h})"
                 )
                 continue
 
             img_cut = self._full_image.copy(x, y, w2, h2)
             if img_cut.isNull():
-                logging.warning("技能区域裁剪失败：index=%s name=%s", area.index, area.name)
+                logging.warning(f"技能区域裁剪失败：index={area.index} name={area.name}")
                 continue
 
             self._skill_area_images[area.index] = img_cut
             ImageShop.save_skill_area(self._full_image, x, y, w2, h2, area.index)
             logging.info(
-                "已裁剪技能区域：index=%s name=%s x=%s y=%s w=%s h=%s",
-                area.index,
-                area.name,
-                x,
-                y,
-                w2,
-                h2,
+                f"已裁剪技能区域：index={area.index} name={area.name} x={x} y={y} w={w2} h={h2}"
             )
-        
+
     def on_pic_match_clicked(self) -> None:
         logging.info("Pic Match button clicked")
 
@@ -1241,18 +1301,18 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             hotkey = self._skill_key_by_index.get(idx, "")
 
             if icon is None:
-                logging.warning("技能 %s 没有配置 skill_icon，跳过匹配", idx)
+                logging.warning(f"技能 {idx} 没有配置 skill_icon，跳过匹配")
                 continue
 
             templ_path = str(icon.icon_path)
             if not icon.icon_path.exists():
-                logging.warning("技能 %s 模板图不存在：%s", idx, templ_path)
+                logging.warning(f"技能 {idx} 模板图不存在：{templ_path}")
                 continue
 
             try:
                 target_bgr = self._qimage_to_cv_bgr(img_qt)
             except Exception:
-                logging.exception("技能 %s：QImage 转 OpenCV 失败", idx)
+                logging.exception(f"技能 {idx}：QImage 转 OpenCV 失败")
                 continue
 
             # 先判断“灰色（禁用）态”：sat 低于阈值则直接判定禁用，不做任何匹配
@@ -1266,11 +1326,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             if mean_sat is not None and mean_sat < sat_disable_threshold:
                 hk = f" key={hotkey}" if hotkey else ""
                 logging.info(
-                    "技能状态：index=%s name=%s%s 灰色（禁用） sat=%.1f",
-                    idx,
-                    icon.name,
-                    hk,
-                    mean_sat,
+                    f"技能状态：index={idx} name={icon.name}{hk} 灰色（禁用） sat={mean_sat:.1f}"
                 )
                 continue
 
@@ -1282,7 +1338,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             if icon_bgr is None:
                 icon_bgr = cv2.imread(templ_path)
             if icon_bgr is None:
-                logging.warning("技能 %s：读取技能图标失败：%s", idx, templ_path)
+                logging.warning(f"技能 {idx}：读取技能图标失败：{templ_path}")
                 continue
 
             # ===== 下面开始做“模板匹配” =====
@@ -1310,7 +1366,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 if th > ih or tw > iw:
                     scale = min(iw / float(tw), ih / float(th))
                     if scale <= 0:
-                        logging.warning("技能 %s：模板图尺寸无效，跳过", idx)
+                        logging.warning(f"技能 {idx}：模板图尺寸无效，跳过")
                         continue
                     new_w = max(1, int(round(tw * scale)))
                     new_h = max(1, int(round(th * scale)))
@@ -1333,7 +1389,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                     f'| icon(target)={target_for_match.shape} screenshot(template)={templ_for_match.shape} result={result.shape}'
                 )
             except Exception:
-                logging.exception("技能 %s：彩色 matchTemplate 失败", idx)
+                logging.exception(f"技能 {idx}：彩色 matchTemplate 失败")
                 continue
 
             score = float(max_val)
@@ -1346,14 +1402,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             hk = f" key={hotkey}" if hotkey else ""
             sat_str = f" sat={mean_sat:.1f}" if mean_sat is not None else ""
             logging.info(
-                "技能匹配：index=%s name=%s%s score=%.4f passed=%s loc=%s%s",
-                idx,
-                name,
-                hk,
-                score,
-                passed,
-                max_loc,
-                sat_str,
+                f"技能匹配：index={idx} name={name}{hk} score={score:.4f} passed={passed} loc={max_loc}{sat_str}"
             )
 
         self.statusLabel.setText(f"当前状态：匹配 {ok_count}/{total} (阈值={threshold})")
@@ -1394,10 +1443,10 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             templ_path = Path.cwd() / templ_path
 
         if not target_path.exists():
-            logging.warning("test_match：目标图不存在：%s", target_path)
+            logging.warning(f"test_match：目标图不存在：{target_path}")
             return None
         if not templ_path.exists():
-            logging.warning("test_match：模板图不存在：%s", templ_path)
+            logging.warning(f"test_match：模板图不存在：{templ_path}")
             return None
 
         # 读取图片（优先 Unicode 安全方式；失败再 fallback 到 cv2.imread）
@@ -1409,10 +1458,10 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             templ_bgr = cv2.imread(str(templ_path))
 
         if target_bgr is None:
-            logging.warning("test_match：读取目标图失败：%s", target_path)
+            logging.warning(f"test_match：读取目标图失败：{target_path}")
             return None
         if templ_bgr is None:
-            logging.warning("test_match：读取模板图失败：%s", templ_path)
+            logging.warning(f"test_match：读取模板图失败：{templ_path}")
             return None
 
         # 计算目标图饱和度均值（用于你分析“灰色/彩色”的状态）
@@ -1424,13 +1473,9 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             mean_sat = None
 
         logging.info(
-            "test_match：target=%s shape=%s | templ=%s shape=%s | mean_sat=%s | method=%s",
-            str(target_path),
-            getattr(target_bgr, "shape", None),
-            str(templ_path),
-            getattr(templ_bgr, "shape", None),
-            f"{mean_sat:.1f}" if mean_sat is not None else "None",
-            int(method),
+            f"test_match：target={target_path} shape={getattr(target_bgr, 'shape', None)} | "
+            f"templ={templ_path} shape={getattr(templ_bgr, 'shape', None)} | "
+            f"mean_sat={(f'{mean_sat:.1f}' if mean_sat is not None else 'None')} | method={int(method)}"
         )
 
         target_for_match = target_bgr
@@ -1449,12 +1494,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 new_w = max(1, int(round(tw * scale)))
                 new_h = max(1, int(round(th * scale)))
                 logging.info(
-                    "test_match：模板缩放：(%sx%s) -> (%sx%s) scale=%.4f",
-                    tw,
-                    th,
-                    new_w,
-                    new_h,
-                    scale,
+                    f"test_match：模板缩放：({tw}x{th}) -> ({new_w}x{new_h}) scale={scale:.4f}"
                 )
                 templ_for_match = cv2.resize(
                     templ_for_match,
@@ -1469,16 +1509,12 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             return None
 
         logging.info(
-            "test_match：min_val=%.6f min_loc=%s | max_val=%.6f max_loc=%s | result_shape=%s",
-            float(min_val),
-            min_loc,
-            float(max_val),
-            max_loc,
-            getattr(result, "shape", None),
+            f"test_match：min_val={float(min_val):.6f} min_loc={min_loc} | "
+            f"max_val={float(max_val):.6f} max_loc={max_loc} | result_shape={getattr(result, 'shape', None)}"
         )
 
         return float(max_val)
-    
+
     def on_pic_test_clicked(self) -> None:
         self.test_match(
             target_icon_path="res/icons/skill/坠天星落-114.png",
@@ -1488,7 +1524,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             target_icon_path="res/icons/skill/正义仲裁官-114.png",
             template_icon_path="screen_shoot/skill_2.png",
         )
-        
+
     def on_checkbox_start_monitor_changed(self, state: int) -> None:
         if state == Qt.CheckState.Checked.value:
             logging.info("Start Monitor checkbox checked")

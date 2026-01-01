@@ -116,6 +116,14 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self._monitor_hwnd_title: str = ""
         self._monitor_settings = self._load_smart_key_monitor_settings_from_config()
 
+        # ===== 方案 B：表格快照共享缓存（UI 写入，worker 读取；不传 Qt 对象） =====
+        self._monitor_table_lock = threading.Lock()
+        self._monitor_table_cache: dict[int, dict[str, object]] = {}
+        self._monitor_table_cache_version: int = 0
+
+        # 避免 load 表格时触发 itemChanged 导致不必要的缓存刷新
+        self._is_loading_smart_key_table: bool = False
+
         # 裁剪缓存与 worker 共享，做一个锁避免竞态
         self._skill_area_lock = threading.Lock()
 
@@ -123,6 +131,9 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self._smart_key_row_defaults: dict[int, float] = {}
         self._setup_smart_key_table_ui()
         self._load_smart_key_table_from_config_or_default()
+
+        # 初始化一次缓存（不依赖监控是否启动；worker 只读缓存）
+        self._refresh_monitor_table_cache_from_ui()
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -137,6 +148,41 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         self.pushButton_test.clicked.connect(self.on_pic_test_clicked)
         self.checkBoxStartMonitor.stateChanged.connect(self.on_checkbox_start_monitor_changed)
         self.btn_save_config.clicked.connect(self.on_save_smart_key_config_clicked)
+
+        # 表格修改时刷新共享缓存（方案 B）
+        try:
+            self.tableWidget.itemChanged.connect(self._on_smart_key_table_item_changed)
+        except Exception:
+            pass
+
+    def _on_smart_key_table_item_changed(self, _item) -> None:
+        if bool(getattr(self, "_is_loading_smart_key_table", False)):
+            return
+        self._refresh_monitor_table_cache_from_ui()
+
+    def _on_smart_key_table_interval_changed(self, _text: str) -> None:
+        if bool(getattr(self, "_is_loading_smart_key_table", False)):
+            return
+        self._refresh_monitor_table_cache_from_ui()
+
+    def _refresh_monitor_table_cache_from_ui(self) -> None:
+        """UI 线程：把表格内容写入共享缓存（纯 Python 数据）。"""
+
+        try:
+            snapshot = self._get_smart_key_table_snapshot_by_index()
+        except Exception:
+            snapshot = {}
+
+        with self._monitor_table_lock:
+            self._monitor_table_cache = snapshot
+            self._monitor_table_cache_version += 1
+
+    def _get_monitor_table_cache_copy(self) -> dict[int, dict[str, object]]:
+        """worker 线程：读取共享缓存的拷贝。"""
+
+        with self._monitor_table_lock:
+            # 值都是基础类型，浅拷贝足够避免并发读写问题
+            return {int(k): dict(v) for k, v in self._monitor_table_cache.items() if isinstance(v, dict)}
 
     def _setup_smart_key_table_ui(self) -> None:
         """初始化 smart_key 的 tableWidget 外观/列。"""
@@ -266,6 +312,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         ]
 
     def _load_smart_key_table_from_config_or_default(self) -> None:
+        self._is_loading_smart_key_table = True
         self.tableWidget.setRowCount(0)
         self._smart_key_row_defaults.clear()
 
@@ -294,6 +341,8 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                 sat_target_value=cfg.get("sat_target_value"),
                 monitor_type=monitor_type,
             )
+
+        self._is_loading_smart_key_table = False
 
     def _add_smart_key_row(
         self,
@@ -341,6 +390,10 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         # 常用值；也允许手动输入
         interval_combo.addItems(["0.05", "0.1", "0.15", "0.2", "0.25", "0.3", "0.5", "1.0"])
         interval_combo.setCurrentText(str(scan_interval_seconds))
+        try:
+            interval_combo.currentTextChanged.connect(self._on_smart_key_table_interval_changed)
+        except Exception:
+            pass
         self.tableWidget.setCellWidget(row, 3, interval_combo)
 
         # 4 操作（重置：把扫描间隔恢复到初始值）
@@ -975,7 +1028,13 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         return hwnd
 
     def _monitor_worker_main(self) -> None:
-        """后台 worker：从队列拿到技能小图，做 SAT 判断并发键。"""
+        """后台 worker：
+
+        - sat_checker：仅处理“本次队列拿到的新截图 cuts”（不复用旧截图）
+        - timer_sender：不依赖截图；即使队列没有新 item，也会按 interval 定时发送
+
+        方案 B：表格快照从共享缓存读取，不再通过队列传递。
+        """
 
         stop_event = self._monitor_stop_event
         q = self._monitor_queue
@@ -992,8 +1051,6 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
 
         # timer_sender 调度：index -> next_due(monotonic)
         next_due_by_index: dict[int, float] = {}
-        last_snapshot: dict[int, dict[str, object]] = {}
-        last_skill_images: dict[int, QImage] = {}
 
         # timed_key 同款启动策略
         timer_initial_wait_seconds = 2.0
@@ -1001,64 +1058,82 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         timer_started_at = time.monotonic()
         timer_initial_done = False
 
+        last_interval_seconds_by_index: dict[int, float] = {}
+
         while not stop_event.is_set():
+            # 方案 B：表格快照从共享缓存读取
+            table_snapshot = self._get_monitor_table_cache_copy()
+
+            # 队列只传截图 cuts；timeout 时仍要跑 timer_sender
+            skill_images: dict[int, QImage] | None
             try:
                 item = q.get(timeout=0.05)
+                if item is None:
+                    # sentinel（加速退出）
+                    break
+                skill_images = item if isinstance(item, dict) else None
             except queue.Empty:
-                item = None
-
-            if item is not None:
-                # item: (cuts, table_snapshot)
-                skill_images, table_snapshot = item
-                if isinstance(skill_images, dict):
-                    last_skill_images = skill_images
-                if isinstance(table_snapshot, dict):
-                    last_snapshot = table_snapshot
-
-                # 应用 snapshot 到 timer_sender 的调度表
-                now = time.monotonic()
-                enabled_timer_indices: list[int] = []
-                for idx, cfg in last_snapshot.items():
-                    try:
-                        idx_int = int(idx)
-                    except Exception:
-                        continue
-                    monitor_type = str(cfg.get("monitor_type") or "sat_checker").strip()
-                    enabled = bool(cfg.get("enabled"))
-                    interval_seconds = float(cfg.get("interval_seconds") or 0.0)
-                    if monitor_type == "timer_sender" and enabled and interval_seconds > 0:
-                        enabled_timer_indices.append(idx_int)
-                    else:
-                        next_due_by_index.pop(idx_int, None)
-
-                enabled_timer_indices.sort()
-                # 仅在“监控启动后的最初阶段”做一次 timed_key 同款 initial_wait + stagger
-                if (not timer_initial_done) and enabled_timer_indices:
-                    if (now - timer_started_at) >= timer_initial_wait_seconds:
-                        base = time.monotonic()
-                        for order, idx_int in enumerate(enabled_timer_indices, start=1):
-                            if idx_int not in next_due_by_index:
-                                next_due_by_index[idx_int] = base + (order * timer_stagger_step_seconds)
-                        timer_initial_done = True
-                else:
-                    # 后续：新启用的 timer_sender，按 interval 安排下一次
-                    for idx_int in enabled_timer_indices:
-                        if idx_int not in next_due_by_index:
-                            interval_seconds = float(last_snapshot[idx_int].get("interval_seconds") or 0.0)
-                            if interval_seconds > 0:
-                                next_due_by_index[idx_int] = time.monotonic() + interval_seconds
+                skill_images = None
 
             hwnd = self._ensure_monitor_hwnd()
             if hwnd is None:
                 continue
 
-            # ===== timer_sender：不依赖截图，只按 interval 定时发送 =====
+            # ===== timer_sender：不依赖截图，只按 interval 定时发送（即使没有新截图 item） =====
             now = time.monotonic()
-            if next_due_by_index and last_snapshot:
+
+            enabled_timer_indices: list[int] = []
+            enabled_timer_interval_by_index: dict[int, float] = {}
+            for idx, cfg in table_snapshot.items():
+                if not isinstance(cfg, dict):
+                    continue
+                monitor_type = str(cfg.get("monitor_type") or "sat_checker").strip() or "sat_checker"
+                enabled = bool(cfg.get("enabled"))
+                interval_seconds = float(cfg.get("interval_seconds") or 0.0)
+                if monitor_type == "timer_sender" and enabled and interval_seconds > 0:
+                    enabled_timer_indices.append(int(idx))
+                    enabled_timer_interval_by_index[int(idx)] = float(interval_seconds)
+
+            # 清理禁用/移除的 timer_sender
+            enabled_timer_set = set(enabled_timer_indices)
+            for idx_int in list(next_due_by_index.keys()):
+                if idx_int not in enabled_timer_set:
+                    next_due_by_index.pop(idx_int, None)
+                    last_interval_seconds_by_index.pop(idx_int, None)
+
+            enabled_timer_indices.sort()
+
+            # 处理 interval 变化：重置下一次触发时间
+            for idx_int in enabled_timer_indices:
+                interval_seconds = float(enabled_timer_interval_by_index.get(idx_int, 0.0))
+                last_interval = float(last_interval_seconds_by_index.get(idx_int, 0.0))
+                if interval_seconds > 0 and (idx_int in last_interval_seconds_by_index) and interval_seconds != last_interval:
+                    next_due_by_index[idx_int] = time.monotonic() + interval_seconds
+                last_interval_seconds_by_index[idx_int] = interval_seconds
+
+            # timed_key 同款 initial_wait + stagger（只在启动初期做一次）
+            if (not timer_initial_done) and enabled_timer_indices:
+                if (now - timer_started_at) >= timer_initial_wait_seconds:
+                    base = time.monotonic()
+                    for order, idx_int in enumerate(enabled_timer_indices, start=1):
+                        if idx_int not in next_due_by_index:
+                            next_due_by_index[idx_int] = base + (order * timer_stagger_step_seconds)
+                    timer_initial_done = True
+            else:
+                # 后续：新启用的 timer_sender，按 interval 安排下一次
+                for idx_int in enabled_timer_indices:
+                    if idx_int not in next_due_by_index:
+                        interval_seconds = float(enabled_timer_interval_by_index.get(idx_int, 0.0))
+                        if interval_seconds > 0:
+                            next_due_by_index[idx_int] = time.monotonic() + interval_seconds
+
+            if next_due_by_index:
+                now2 = time.monotonic()
                 for idx_int, due in list(next_due_by_index.items()):
                     if stop_event.is_set():
                         break
-                    cfg = last_snapshot.get(idx_int)
+
+                    cfg = table_snapshot.get(idx_int)
                     if not isinstance(cfg, dict):
                         continue
                     if str(cfg.get("monitor_type") or "").strip() != "timer_sender":
@@ -1073,7 +1148,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                     if interval_seconds <= 0:
                         continue
 
-                    if now >= float(due):
+                    if now2 >= float(due):
                         try:
                             send_key_to_hwnd(
                                 hwnd,
@@ -1083,19 +1158,24 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                                 should_stop=stop_event.is_set,
                             )
                         except Exception:
-                            logging.exception(f"发送按键失败：monitor_type=timer_sender index={idx_int} hotkey={hotkey}")
+                            logging.exception(
+                                f"发送按键失败：monitor_type=timer_sender index={idx_int} hotkey={hotkey}"
+                            )
                         next_due_by_index[idx_int] = time.monotonic() + interval_seconds
 
-            # ===== sat_checker：仍然走原逻辑（依赖 1..6 的技能小图） =====
+            # ===== sat_checker：仅在收到“新截图 cuts”时才运行（不复用旧截图） =====
+            if not isinstance(skill_images, dict) or not skill_images:
+                continue
+
             for idx in range(1, 7):
                 if stop_event.is_set():
                     break
 
-                img_qt = last_skill_images.get(idx)
+                img_qt = skill_images.get(idx)
                 if img_qt is None:
                     continue
 
-                enabled_cfg = last_snapshot.get(idx)
+                enabled_cfg = table_snapshot.get(idx)
                 if not isinstance(enabled_cfg, dict):
                     continue
 
@@ -1103,7 +1183,7 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
                     continue
 
                 # 表格“启用”未勾选：不做灰度检测，也不发键
-                if not bool(enabled_cfg["enabled"]):
+                if not bool(enabled_cfg.get("enabled")):
                     continue
 
                 # 优先用表格的热键，其次 fallback 到原逻辑解析到的 1-6
@@ -1162,10 +1242,22 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         if self._monitor_stop_event.is_set():
             return
 
-        # UI 线程读取 table 勾选状态快照（worker 线程不可直接读 Qt 控件）
-        table_snapshot = self._get_smart_key_table_snapshot_by_index()
+        # 你的要求：如果队列里还有未消费的数据，直接丢弃本次截图（不等待、不清空旧数据）。
+        # 等下次 tick 再检查队列是否为空，空了再塞进去。
+        try:
+            if self._monitor_queue.qsize() > 0:
+                return
+        except Exception:
+            # 极端情况下 qsize 不可用：退化为尝试 put_nowait（若 Full 就丢弃）
+            pass
+
+        # 方案 B：UI 线程把表格内容写入共享缓存（worker 线程不可直接读 Qt 控件）
+        self._refresh_monitor_table_cache_from_ui()
 
         full_img = self._capture_full_screen_qimage()
+        if full_img is None or full_img.isNull():
+            return
+
         cuts: dict[int, QImage] = {}
         if full_img is not None and not full_img.isNull():
             # 更新缓存（供你调试/后续 UI 复用）
@@ -1187,15 +1279,9 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
         with self._skill_area_lock:
             self._skill_area_images = dict(cuts)
 
-        # 队列只保留最新一帧，避免 worker 堵塞导致延迟累积
         try:
-            while True:
-                self._monitor_queue.get_nowait()
-        except queue.Empty:
-            pass
-
-        try:
-            self._monitor_queue.put_nowait((cuts, table_snapshot))
+            # 方案 B：队列只传本次裁剪的 cuts（不传 table_snapshot）
+            self._monitor_queue.put_nowait(cuts)
         except queue.Full:
             pass
 
@@ -1704,6 +1790,9 @@ class TabSmartKey(QWidget, Ui_TabAdvanceImage):
             self._monitor_last_enabled = {}
             self._monitor_hwnd = None
             self._monitor_hwnd_title = ""
+
+            # 启动前先刷新一次共享缓存，避免 worker 刚启动时拿到空表
+            self._refresh_monitor_table_cache_from_ui()
 
             self._monitor_worker_thread = threading.Thread(
                 target=self._monitor_worker_main,

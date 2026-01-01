@@ -14,6 +14,7 @@
     "screenshot": {
         "save_to_directory": true,
         "save_small_pic": true,
+        "smart_key_monitor_interval": 0.4,
         "smart_key_monitor_save_fullscreen": false,
         "small_pic_region": {
             "x": 1535,

@@ -1,4 +1,4 @@
-@echo off
+@echo on
 setlocal enabledelayedexpansion
 
 REM ËµÃ÷£º
@@ -11,6 +11,10 @@ cd /d "%~dp0.."
 set APP_NAME=DiabloHelper
 set SRC_SOUNDS=res\sounds
 set DST_SOUNDS=dist\res\sounds
+
+echo Building %APP_NAME% with PyInstaller...
+echo SRC_SOUNDS: %SRC_SOUNDS%
+echo DST_SOUNDS: %DST_SOUNDS%
 
 echo [1/2] PyInstaller building...
 pyinstaller --onefile --windowed launch.py --console --name="%APP_NAME%"
@@ -26,9 +30,11 @@ if not exist "%SRC_SOUNDS%" (
 )
 
 if not exist "%DST_SOUNDS%" (
+  echo ready to create destination folder: %DST_SOUNDS%
   mkdir "%DST_SOUNDS%" >nul 2>nul
 )
 
+echo copy from "%SRC_SOUNDS%" to "%DST_SOUNDS%"
 xcopy /E /I /Y "%SRC_SOUNDS%\*" "%DST_SOUNDS%\" >nul
 if errorlevel 1 (
   echo Copy sounds failed.
